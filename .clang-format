@@ -1,0 +1,52 @@
+# .clang-format — calm & spacious cxx
+BasedOnStyle: LLVM
+
+IndentWidth: 4
+UseTab: Never
+ColumnLimit: 70
+
+# readable vertical stacking
+BinPackParameters: AlwaysOnePerLine
+BinPackArguments: false
+PackConstructorInitializers: NextLineOnly
+
+AllowAllArgumentsOnNextLine: false
+AllowAllParametersOfDeclarationOnNextLine: false
+
+BreakAfterReturnType: Automatic
+BreakConstructorInitializers: BeforeColon
+BreakBeforeBinaryOperators: NonAssignment
+
+PenaltyExcessCharacter: 10  # lenient
+PenaltyBreakBeforeFirstCallParameter: 0  # parens are *the* place to break around
+PenaltyBreakAssignment: 1000  # assignments are not
+PenaltyBreakBeforeMemberAccess: 1000 # ditto
+PenaltyReturnTypeOnItsOwnLine: 0
+PenaltyBreakComment: 0 # trial
+
+# alignments
+AlignOperands: Align
+AlignAfterOpenBracket: BlockIndent
+AlignConsecutiveAssignments: AcrossComments
+AlignConsecutiveDeclarations: AcrossComments
+AlignTrailingComments:
+  Kind: Always
+  OverEmptyLines: 1
+DerivePointerAlignment: false
+PointerAlignment: Right
+ReferenceAlignment: Right
+
+# spaces before ()
+SpaceBeforeParens: Custom
+SpaceBeforeParensOptions:
+  AfterControlStatements: true
+  AfterFunctionDefinitionName: true
+  BeforeNonEmptyParentheses: true
+
+# misc
+IncludeBlocks: Preserve
+IndentCaseLabels: true
+KeepEmptyLinesAtTheStartOfBlocks: true
+MaxEmptyLinesToKeep: 2
+ReflowComments: IndentOnly  # I'll break
+SpacesBeforeTrailingComments: 5
