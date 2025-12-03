@@ -6,8 +6,8 @@
 #include "sim_pile.hpp"
 
 
-SCENARIO("create edited reads from template read") {
-    GIVEN("A template read bam1_t tr;") {
+SCENARIO ("create edited reads from template read") {
+    GIVEN ("A template read bam1_t tr;") {
         auto tr = bam_init1();
         // bam_set1(
         //     tr
@@ -16,6 +16,30 @@ SCENARIO("create edited reads from template read") {
             // const auto cb = from_template(tr);
             THEN ("The read should be identical to the template") {
                 // REQUIRE(bam1_cmp(tr, cb))
+            }
+        }
+
+        WHEN ("clone_read(tr, ...) is called with a simple substitution edit") {
+            THEN ("The subsitution is present on the query sequence") {
+
+            }
+            THEN ("The read exactly matches the template, other than the substitution") {
+
+            }
+        }
+
+        WHEN ("clone_read(tr, ...) is called with a deletion edit") {
+            THEN ("The deletion is represented on the query sequence") {
+
+            }
+            THEN ("The deletion is represented on the quality sequence") {
+
+            }
+            THEN ("The deletion is represented in the cigar operations") {
+
+            }
+            THEN ("The read exactly matches the template, other than the substitution") {
+
             }
         }
     }
@@ -75,9 +99,6 @@ SCENARIO ("simple simulated pileup") {
         }
     }
 }
-
-
-
 
 
 // TODO
