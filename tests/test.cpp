@@ -6,6 +6,22 @@
 #include "sim_pile.hpp"
 
 
+SCENARIO("create edited reads from template read") {
+    GIVEN("A template read bam1_t tr;") {
+        auto tr = bam_init1();
+        // bam_set1(
+        //     tr
+        // )
+        WHEN ("clone_read(tr, ...) is called with no edits") {
+            // const auto cb = from_template(tr);
+            THEN ("The read should be identical to the template") {
+                // REQUIRE(bam1_cmp(tr, cb))
+            }
+        }
+    }
+}
+
+
 SCENARIO ("simple simulated pileup") {
     size_t Abases = 6;
     size_t Cbases = 1;
@@ -59,6 +75,9 @@ SCENARIO ("simple simulated pileup") {
         }
     }
 }
+
+
+
 
 
 // TODO
