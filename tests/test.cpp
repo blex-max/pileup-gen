@@ -6,6 +6,8 @@
 #include "sim_pile.hpp"
 
 
+// I don't recall why I believed this
+// functionality to be necessary unfortunately
 SCENARIO ("create edited reads from template read") {
     GIVEN ("A template read bam1_t tr;") {
         auto tr = bam_init1();

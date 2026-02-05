@@ -69,12 +69,11 @@ struct pileup_props_basic {
 constexpr inline std::vector<bam_pileup1_t>
 simulate_pileup (const pileup_props_basic &pr) {
     std::vector<bam_pileup1_t>            out;
-    const auto                            rpos = pr.read_len - 1;
-    std::random_device                    rd;
-    std::mt19937                          rng (rd());
+    const auto                            ref_pos = pr.read_len - 1;
+    std::mt19937                          rng;
     std::uniform_int_distribution<size_t> roll_lmostc (
         0,
-        rpos
+        ref_pos
     );     // start coord of reads
 
     // make shuffle
@@ -87,7 +86,7 @@ simulate_pileup (const pileup_props_basic &pr) {
 
     while (!evs.empty()) {
         const auto lmc  = roll_lmostc (rng);
-        const auto qpos = rpos - lmc;
+        const auto qpos = ref_pos - lmc;
         auto       qseq = pr.ref.substr (lmc, pr.read_len);
         qseq.replace (qpos, 1, 1, evs.back());
         evs.pop_back();
