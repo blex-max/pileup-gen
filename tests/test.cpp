@@ -5,6 +5,25 @@
 
 #include "sim_pile.hpp"
 
+SCENARIO ("generate random unaligned reads") {
+    // from looking at how sequence data is used
+    // in other testing, e.g. LUCA, often what is required
+    // is random sequences with some percentage of a "target"
+    // mixed in. That may be read-context/feature level
+    // or it might be just e.g. "empty reads" or "length-truncated reads".
+    // Either way, the first step is simulation of random unaligned reads
+
+    GIVEN ("A request for N random reads") {
+        // reqs = ...
+        WHEN ("generate_reads is called") {
+            // d = generate_reads ()
+            THEN ("a vector of unaligned reads is returned") {
+                // REQUIRE...
+            }
+        }
+    }
+}
+
 
 // I don't recall why I believed this
 // functionality to be necessary unfortunately

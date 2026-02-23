@@ -9,13 +9,19 @@
 
 #include <htslib/sam.h>
 
+// TODO random read generator
+// sans pileup, no ref, just reads of length L
+// with events specified
+
+// TODO % deviation from ref
+// TODO in general, fraction/ratio based construction
 struct pileup_ev_s {
     size_t A, T, C, G;     // exclusive events
     // size_t del;  // exclusive, not yet implemented
     // size_t fdel, fins, head, tail  // auxillary events
     size_t nreads;
 
-    pileup_ev_s() = delete;
+    pileup_ev_s() = delete;  // prevent undef
 
     pileup_ev_s (
         size_t nA,
@@ -63,8 +69,8 @@ struct pileup_props_basic {
     }
 };
 
-// NOTE ideally this should be class based for
-// lifetime management of the bam1_ts
+// NOTE MOVING TO GENERATE-PILEUP.HPP!!!
+// NOTE ideally this should be class based
 // NOTE deletions may not be at the end of a query seq
 constexpr inline std::vector<bam_pileup1_t>
 simulate_pileup (const pileup_props_basic &pr) {
