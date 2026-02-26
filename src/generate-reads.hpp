@@ -17,7 +17,8 @@ struct ReadProps {
 };
 
 
-using ReadVec = std::vector<bam1_t>;
+using ReadVec = std::vector<bam1_t*>;
+using ReadSpecVec = std::vector<std::pair<ReadProps, size_t>>;
 class ReadGen {
   private:
   std::mt19937 rng();
@@ -26,5 +27,5 @@ class ReadGen {
   ReadProps rp;
 
   ReadVec
-  generate_reads (size_t n);
+  generate_reads (ReadSpecVec rsv);
 };
