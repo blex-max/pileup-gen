@@ -1,11 +1,39 @@
-#include <cxxopts.hpp>
 #include <htslib/hts.h>
 #include <htslib/sam.h>
 #include <iostream>
 
+#include "generate-reads.hpp"
 #include "sim_pile.hpp"
 #include "util.hpp"
 #include "read-ops.hpp"
+
+// USE CASES:
+// producing a set of reads constituting a pileup at position x
+// with a known count of each property of interest.
+//
+// producing a set of reads incorporating target feature/s
+// e.g. 100 random reads with the motif "ATTTA". Think crispr
+// quantification.
+// And more simply, being able to generate a to-spec SAM file
+// with e.g. a single read pair with feature x, is a common
+// testing pattern.
+//
+// Originally, I envisaged an API for sequential unit testing
+// applying edits to a template read, but on reflection
+// it is probably conceptually simpler to generate a new one
+// based on the same set of arguments modifying equivalently
+// to the desired edit operation. In other words
+// functionality for creating a single read from template
+// arguments.
+//
+// NOTE: the important point to elucidate for API design
+// is how the operations needed for these use cases overlap
+
+// FUTURE:
+// By implementing this functionality well, it should then become
+// plausible to string them together to generate e.g.
+// a BAM file of variants to spec
+
 
 // SKETCH:
 // minimal:
@@ -29,14 +57,9 @@
 // -> could provide multiple sparse query positions of events
 // to produce specified multi event reads
 // -> can apply models to read simulation
-// -> could do this in pysam (might be trickier)
 
-// TODO
-// plan out each unit/function/module needed
 
-int main(int argc, char *argv[]) {
-
-  cxxopts::Options args("hts-syn", "simulate htslib pileup");
+int main(int, char **) {
 
   // args.add_options(); // todo
 
@@ -47,6 +70,8 @@ int main(int argc, char *argv[]) {
 
   // // better would be emission in the SAM format
   // // this is temp
+  // TODO add this as a subcommand to apb (pileup browser) as `apb print`
+  // for a very simple display to terminal
   // std::cout << std::format ("{}", props.ref) << "\n";
   // for (const auto r : pile) {
   //   const std::string pad(static_cast<size_t> (r.b->core.pos), ' ');
@@ -63,26 +88,24 @@ int main(int argc, char *argv[]) {
   // sam_hdr_add_line(hdr, "SQ",
   //                  "SN", "chr1",
   //                  "LN", "248956422",
-  //                  NULL);    
-  sam_hdr_write(hfp, hdr);
-
-  // auto b = bam_init1();
+  //                  NULL);
+  if (const auto rc = sam_hdr_write(hfp, hdr);
+      rc < 0) {
+    std::cerr << "error writing hdr";
+    return 1;
+  };
 
   size_t n = 10;
   const auto spec = readops::ReadArgs{};
-  for (size_t i = 0; i < n; ++i) {
-    // TODO use smart pointers
-    const auto b = readops::create_read(spec);
-    // sam_write1(hfp, hdr, b);
-    if (sam_write1(hfp, hdr, b) < 0) {
+
+  const auto reads = generate_reads({{n, spec}});
+  for (const auto& r : reads) {
+    if (sam_write1(hfp, hdr, r) < 0) {
       return 1;
     }
-    bam_destroy1(b);
   }
 
   hts_flush(hfp);
-
-  // bam_destroy1(b);
   sam_hdr_destroy(hdr);
 
   return 0;

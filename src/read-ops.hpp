@@ -1,3 +1,5 @@
+#pragma once
+
 #include <format>
 #include <iostream>
 #include <stdexcept>
@@ -53,11 +55,6 @@ inline bam1_t* create_read (const ReadArgs& ra) {
   size_t buf_alloc;
   sam_parse_cigar (cig_s.c_str(), NULL, &cig_buf, &buf_alloc);
 
-  // return b;
-
-  // TODO
-  // see what bam_set1 is moaning about
-  // re "mapped query must have a cigar"
   const auto rc = bam_set1 (
       b,
       ra.qname.size(),
@@ -84,6 +81,8 @@ inline bam1_t* create_read (const ReadArgs& ra) {
   return b;
 };
 
+
+// probably unnecessary
 void ins (bam1_t* b, size_t pos, std::string ins);
 void del (bam1_t* b, size_t pos, size_t len);
 void sub (bam1_t* b, size_t pos, char base);

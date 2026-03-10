@@ -20,16 +20,8 @@ set(HTSLIB_LIBRARY "" CACHE FILEPATH "Absolute path to libhts.{so,dylib,a}")
 # //--- find deps ---//
 find_package(PkgConfig QUIET)
 
-# //--- cxxopts ---//
-include(FetchContent)
+# TODO: argparse
 
-message(STATUS "Finding cxxopts")
-FetchContent_Declare(
-  cxxopts
-  GIT_REPOSITORY https://github.com/jarro2783/cxxopts.git
-  GIT_TAG        v3.3.1  # what I developed against, but any 3.x.x should be fine
-)
-FetchContent_MakeAvailable(cxxopts)
 
 # ------- htslib -------
 message(STATUS "Finding htslib")
@@ -94,6 +86,7 @@ endif(MAKE_TEST)
 
 add_executable(pilegen
   src/main.cpp
+  src/generate-reads.cpp
 )
 
 target_compile_options(pilegen PRIVATE
@@ -123,9 +116,15 @@ if(ENABLE_DEBUG_FLAGS)
   )
 endif()
 
-target_include_directories(pilegen PRIVATE src)
+target_include_directories(
+  pilegen
+  PRIVATE
+  src
+)
 
-target_link_libraries(pilegen
+target_link_libraries(
+  pilegen
+  PRIVATE
   cxxopts::cxxopts
   ${HTSLIB_TARGET}
 )

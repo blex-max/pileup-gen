@@ -22,6 +22,7 @@ struct EventSpec {
   int indel=0;        // <0 del, >0 ins, length indel
   std::string ins{};  // empty is random, mismatched length is err
 };
+// NOTE the above *could*, in principle, describe any base in a read
 
 
 // NOTE WIP
@@ -51,3 +52,7 @@ class PileupGen {
   generate (const std::vector<std::pair<size_t, EventSpec>> &events);
 
 };
+
+// TODO
+// generate_pileup.cpp
+// using create_read
