@@ -20,8 +20,14 @@ set(HTSLIB_LIBRARY "" CACHE FILEPATH "Absolute path to libhts.{so,dylib,a}")
 # //--- find deps ---//
 find_package(PkgConfig QUIET)
 
-# TODO: argparse
-
+include(FetchContent)
+set(FETCHCONTENT_QUIET OFF)
+FetchContent_Declare(
+    argparse
+    GIT_REPOSITORY https://github.com/p-ranav/argparse.git
+    GIT_TAG v3.2
+)
+FetchContent_MakeAvailable(argparse)
 
 # ------- htslib -------
 message(STATUS "Finding htslib")
@@ -125,6 +131,6 @@ target_include_directories(
 target_link_libraries(
   pilegen
   PRIVATE
-  cxxopts::cxxopts
   ${HTSLIB_TARGET}
+  argparse
 )

@@ -16,12 +16,12 @@ namespace readops {
 // then streamline once working
 // - there's obviously some overlap between
 // structs/common properties between functions
-using CigarVec = std::vector<std::pair<size_t, char>>;
-struct ReadArgs {
+using CigV = std::vector<std::pair<size_t, char>>;
+struct ReadData {
   std::string qseq{};   // emtpy == NULL
   std::string qqual{};  // empty == NULL
   std::string qname{};  // empty == NULL
-  CigarVec qcig{};      // empty == unaligned
+  CigV qcig{};      // empty == unaligned
   hts_pos_t lmost_pos=0;
   hts_pos_t mate_lmost_pos=0;
   uint16_t flag=0;
@@ -35,7 +35,7 @@ struct ReadArgs {
 };
 
 // wrapper for bam_set1
-inline bam1_t* create_read (const ReadArgs& ra) {
+inline bam1_t* create_bam1 (const ReadData& ra) {
   auto b = bam_init1();
 
   std::string cig_s;

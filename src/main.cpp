@@ -2,12 +2,18 @@
 #include <htslib/sam.h>
 #include <iostream>
 
+#include <argparse/argparse.hpp>
+#include <stdexcept>
+
 #include "generate-reads.hpp"
 #include "sim_pile.hpp"
 #include "util.hpp"
 #include "read-ops.hpp"
 
 // USE CASES:
+// producing a set of reads aligned to a segment of reference
+// with "random" noise.
+// 
 // producing a set of reads constituting a pileup at position x
 // with a known count of each property of interest.
 //
@@ -59,17 +65,38 @@
 // -> can apply models to read simulation
 
 
-int main(int, char **) {
+int main(int argc, char** argv) {
 
-  // args.add_options(); // todo
+  argparse::ArgumentParser cli ("hts-gen", "0.0.0");
+
+  cli.add_argument ("ref")
+    .help ("string to use as reference");
+  cli.add_argument ("--read-len")
+    .help ("read length")
+    .default_value (150)
+    .nargs(1)
+    .scan<'i', int>();
+
+
+  try {
+    cli.parse_args(argc, argv);    // Example: ./main --color red --color green --color blue
+  }
+  catch (const std::exception& err) {
+    std::cerr << err.what() << std::endl;
+    std::cerr << cli;
+    std::exit(1);
+  }
+
+  auto ref_arg = cli.get<std::string> ("ref");
+  auto read_len_arg = static_cast<size_t> (cli.get<int> ("--read-len"));
+
+  if (read_len_arg > ref_arg.size()) {
+    throw std::runtime_error("too long!");
+  }
 
   // pileup_ev_s ev(5, 5, 5, 5);
   // pileup_props_basic props(ev, 10, {});
-
   // auto pile = simulate_pileup(props);
-
-  // // better would be emission in the SAM format
-  // // this is temp
   // TODO add this as a subcommand to apb (pileup browser) as `apb print`
   // for a very simple display to terminal
   // std::cout << std::format ("{}", props.ref) << "\n";
@@ -96,7 +123,7 @@ int main(int, char **) {
   };
 
   size_t n = 10;
-  const auto spec = readops::ReadArgs{};
+  const auto spec = readops::ReadData{ref_arg};
 
   const auto reads = generate_reads({{n, spec}});
   for (const auto& r : reads) {
