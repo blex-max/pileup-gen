@@ -1,6 +1,7 @@
 #include <cassert>
 #include <htslib/sam.h>
 #include <random>
+#include <map>
 
 #include "generate-reads.hpp"
 #include "generate-pileup.hpp"  // must factor out eventspec!!
@@ -18,13 +19,31 @@ ReadV generate_reads (const ReadArgV& rav) {
 }
 
 
+enum MutationType: size_t {
+    transition,
+    ins,
+    del
+};
+struct MutationEvent {
+    MutationType t;
+    size_t len;
+    float intensity=1.0;  // 0-1 likelihood
+};
+
 // trying to generate just one fuzzy read right now
 // and build up to multiple.
 // I'm imagining perhaps a while loop for each read of diminishing probability
 // of adding more events from a randomly generated set of events
 // against the reference.
 // Also n.b. the ref -> template -> read event propagation idea
-ReadV gen_fuzzy_read(std::string_view ref, size_t read_len, std::mt19937& rng) {
+ReadV gen_fuzzy_reads
+(
+    size_t n,
+    std::string_view ref,
+    size_t read_len,
+    float event_intensity,  // 0 - 1, likelihood per base (there are many ways one could do this)
+    std::mt19937& rng
+) {
     assert (ref.size() >= read_len);
 
     // A read can be described as a series of events
@@ -51,8 +70,74 @@ ReadV gen_fuzzy_read(std::string_view ref, size_t read_len, std::mt19937& rng) {
     // Also, most reads will not have independent large differences, which is the appeal of the
     // sample -> template/fragment -> reads approach. Or in other words, it seems
     // sensible to generate a fixed set of divergences from the reference, and then
-    // apply a randomly selected set of those, +- sequencing error, to generate reads. 
+    // apply a randomly selected set of those, +- sequencing error, to generate reads.
 
+    // gen_events
+
+    const auto n_ev =
+        static_cast<size_t> (
+            ceil (event_intensity
+                  * static_cast<float> (ref.size())));
+    std::map<size_t, MutationEvent> sample_ev;  // keyed by genomic position, ascending
+    auto position_gen = std::uniform_int_distribution<size_t> (0, ref.size());
+    auto dice_gen = std::uniform_int_distribution<size_t> (0, 100);
+    for (size_t i = 0; i < n_ev; ++i) {
+        const auto epos = position_gen(rng);
+        // keep it simple for now
+        sample_ev.try_emplace(epos, MutationType::transition, 1);
+        // TODO e.g.
+        // const auto dice_roll = dice_gen(rng);
+        // if (dice_roll > 30) {
+        //     sample_ev.try_emplace(epos, MutationType::transition, 1);
+        // } else if (dice_roll > 15) {
+        //     sample_ev.try_emplace(epos, MutationType::del, 3);
+        // } else {
+        //     sample_ev.try_emplace(epos, MutationType::ins, 3);
+        // }
+    }
+
+    // TODO this approach does NOT
+    // account for non ref consuming events (see above comments).
+    auto qpos_gen = std::uniform_int_distribution<size_t> (0, ref.size() - read_len);
+    for (size_t i = 0; i < n; ++i) {
+        const auto qpos = qpos_gen(rng);
+        // get overlapping events
+        auto it_low = sample_ev.lower_bound(qpos);
+        auto it_hi = sample_ev.upper_bound(qpos + read_len);
+        for (auto it = it_low; it != it_hi; ++it) {
+            // apply event
+        }
+        // readops::create_bam1(const ReadData &ra)
+    }
+
+    /*
+    TODO/NEXT
+    The above was noodling.
+    Noodling has led to the following conclusion/
+    rough shape for this process:
+    - Create a list of sample mutation events
+    - Create one or more sample sequences, edited from reference,
+      applying some or all of those events
+    - For each simulated read, create a segment edit script
+      (basically, an expanded cigar)
+      (the edits here will mostly be simulating sequencer error
+      since the samples created in the prior step will impart mutation events later)
+    - Chose a sample for that read to have been sequenced from
+    - Based on the reference consumption of the edit script,
+      choose a starting ref/source position
+    - Materialise the read
+
+    Pros:
+    - Clean separation of sample-level variation and read-level artefacts.
+    - Indels and clipping handled naturally via concrete sample sequence.
+    - Segment edit scripts provide a uniform consume/emit model.
+    - Avoids coordinate confusion.
+    - Extensible to mixtures, haplotypes, and richer error models.
+
+    Cons:
+    - Multiple layers add complexity.
+    - Risk of over-engineering for current scope.
+    */
 
 }
 

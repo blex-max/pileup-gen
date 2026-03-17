@@ -29,4 +29,4 @@ using ReadArgV = std::vector<std::pair<size_t, readops::ReadData>>;
 ReadV generate_reads (const ReadArgV& rav);
 
 
-ReadV gen_fuzzy_read (std::string_view ref, size_t read_len);
+ReadV gen_fuzzy_reads (std::string_view ref, size_t read_len);
