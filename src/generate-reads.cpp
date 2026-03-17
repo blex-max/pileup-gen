@@ -118,18 +118,19 @@ ReadV gen_fuzzy_reads
     - Create a list of sample mutation events
     - Create one or more sample sequences, edited from reference,
       applying some or all of those events
-    - For each simulated read, create a segment edit script
-      (basically, an expanded cigar)
-      (the edits here will mostly be simulating sequencer error
-      since the samples created in the prior step will impart mutation events later)
     - Chose a sample for that read to have been sequenced from
     - Based on the reference consumption of the edit script,
       choose a starting ref/source position
+    - For each simulated read, create a segment edit script
+      (basically, an expanded cigar)
+      (the edits here will mostly be simulating sequencer error
+      since the samples created in the prior step will impart mutation events)
     - Materialise the read
 
     Pros:
     - Clean separation of sample-level variation and read-level artefacts.
-    - Indels and clipping handled naturally via concrete sample sequence.
+        ^ this is the big one which was tricky while noodling
+    - Mutations handled naturally via concrete sample sequence.
     - Segment edit scripts provide a uniform consume/emit model.
     - Avoids coordinate confusion.
     - Extensible to mixtures, haplotypes, and richer error models.
@@ -137,6 +138,27 @@ ReadV gen_fuzzy_reads
     Cons:
     - Multiple layers add complexity.
     - Risk of over-engineering for current scope.
+    - Requires right flank (see below)
+
+
+    In terms of implementation, the obvious next step is that edit
+    script generation can be separated from mutation event generation,
+    and creation of fuzzy reads with sequencing error (or any error model,
+    I'd suggest a callback here) can be created with.
+
+    Note that edit script generation will be context dependent.
+    So you need a right flank and can only start from ref.size() - read_len.
+    There's no get out of jail, that's just how it is!
+
+    Ignore soft clipping for now - it is an aligner feature if sequences
+    are highly divergent
+
+    Sequence error events (for model I suppose):
+    copy run
+    substitution run
+    insertion run
+    deletion run
+    optional untemplated prefix/suffix run (primer/barcode contamination)
     */
 
 }
