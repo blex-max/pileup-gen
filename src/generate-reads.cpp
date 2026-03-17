@@ -45,7 +45,13 @@ ReadV gen_fuzzy_read(std::string_view ref, size_t read_len, std::mt19937& rng) {
     // const auto lc = uniform_int_distribution<size_t> (0, ref.size() - ref_consumed)
     // const auto qseq = seq_from_cigar(cig, ref.substr(lc, ref_consumed))  // what will this do about insertions?
     // really this should be filling out a ReadData struct
-    // const auto qqual = gen_qual(cig, qseq, ref) // reality doesn't cascade so smoothly...
+    // const auto qqual = gen_qual(cig, qseq, ref) // reality doesn't cascade so smoothly..., which is the appeal
+    // of the higher level event based absraction I suppose
+    //
+    // Also, most reads will not have independent large differences, which is the appeal of the
+    // sample -> template/fragment -> reads approach. Or in other words, it seems
+    // sensible to generate a fixed set of divergences from the reference, and then
+    // apply a randomly selected set of those, +- sequencing error, to generate reads. 
 
 
 }
