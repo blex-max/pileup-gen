@@ -2,13 +2,18 @@
 #include <htslib/sam.h>
 #include <iostream>
 
+#include <plog/Log.h>
+#include <plog/Initializers/ConsoleInitializer.h>
+#include <plog/Formatters/TxtFormatter.h>
+
 #include <argparse/argparse.hpp>
 #include <stdexcept>
 
-#include "generate-reads.hpp"
+#include "hts-boundary-types.hpp"
 #include "sim_pile.hpp"
 #include "util.hpp"
-#include "read-ops.hpp"
+#include "subcommand_exact.hpp"
+#include "subcommand_seq.hpp"
 
 // USE CASES:
 // producing a set of reads aligned to a segment of reference
@@ -65,28 +70,27 @@
 // -> can apply models to read simulation
 
 
-int main(int argc, char** argv) {
-
+int main (int argc, char** argv) {
   argparse::ArgumentParser cli ("hts-gen", "0.0.0");
 
-  cli.add_argument ("ref")
-    .help ("string to use as reference");
-  cli.add_argument ("--read-len")
-    .help ("read length")
-    .default_value (150)
-    .nargs(1)
-    .scan<'i', int>();
-
-  // NEXT/TODO: subcommands
+  argparse::ArgumentParser sub_exact ("exact");
+  setup_exact_parser (sub_exact);
+  cli.add_subparser (sub_exact);
+  
+  argparse::ArgumentParser sub_seq ("seq");
+  setup_seq_parser (sub_seq);
+  cli.add_subparser(sub_seq);
 
   try {
-    cli.parse_args(argc, argv);    // Example: ./main --color red --color green --color blue
+    cli.parse_args(argc, argv);
   }
   catch (const std::exception& err) {
     std::cerr << err.what() << std::endl;
     std::cerr << cli;
-    std::exit(1);
+    return 1;
   }
+
+  plog::init<plog::TxtFormatter>(plog::debug, plog::streamStdErr);
 
   auto ref_arg = cli.get<std::string> ("ref");
   auto read_len_arg = static_cast<size_t> (cli.get<int> ("--read-len"));
@@ -107,34 +111,55 @@ int main(int argc, char** argv) {
   //   std::cout << std::format ("{}{}", pad, seq) << "\n";
   // }
 
-  auto hfp = hts_open("-", "w");
-  auto hdr = sam_hdr_init();
-  // NOTE attempting to write a bam1_t
-  // to file without having set SQ lines
-  // is a hard segfault if any RNAME
-  // is set in the bam1_t
-  // sam_hdr_add_line(hdr, "SQ",
-  //                  "SN", "chr1",
-  //                  "LN", "248956422",
-  //                  NULL);
-  if (const auto rc = sam_hdr_write(hfp, hdr);
-      rc < 0) {
-    std::cerr << "error writing hdr";
-    return 1;
-  };
+  hts::SamOut out{};
+  {
+    auto hfp = hts_open("-", "w");
+    auto hdr = sam_hdr_init();
+    // NOTE attempting to write a bam1_t
+    // to file without having set SQ lines
+    // is a hard segfault if any RNAME
+    // is set in the bam1_t
+    // sam_hdr_add_line(hdr, "SQ",
+    //                  "SN", "chr1",
+    //                  "LN", "248956422",
+    //                  NULL);
+    if (const auto rc = sam_hdr_write(hfp, hdr);
+        rc < 0) {
+      std::cerr << "error writing hdr";
+      return 1;
+    };
+    out.ofp = hfp;
+    out.hdr = hdr;
+  }
 
-  size_t n = 10;
-  const auto spec = readops::ReadData{ref_arg};
-
-  const auto reads = generate_reads({{n, spec}});
-  for (const auto& r : reads) {
-    if (sam_write1(hfp, hdr, r) < 0) {
+  ReadV reads;
+  if (cli.is_subcommand_used(sub_exact)) {
+    PLOGD << "exact subcommand called";
+    try {
+      reads = run_exact (sub_exact);
+    }
+    catch (const std::exception& ex) {
+      PLOGF << ex.what();
+      return 1;
+    }
+  }
+  if (cli.is_subcommand_used(sub_seq)) {
+    PLOGD << "seq subcommand called";
+    try {
+      reads = run_seq (sub_seq);
+    }
+    catch (const std::exception& ex) {
+      PLOGF << ex.what();
       return 1;
     }
   }
 
-  hts_flush(hfp);
-  sam_hdr_destroy(hdr);
+  for (const auto& r : reads) {
+    if (sam_write1(out.ofp, out.hdr, r) < 0) {
+      PLOGF << "failed to write";
+      return 1;
+    }
+  }
 
   return 0;
 }

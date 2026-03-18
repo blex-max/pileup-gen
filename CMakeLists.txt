@@ -23,6 +23,13 @@ find_package(PkgConfig QUIET)
 include(FetchContent)
 set(FETCHCONTENT_QUIET OFF)
 FetchContent_Declare(
+    plog
+    GIT_REPOSITORY https://github.com/SergiusTheBest/plog
+    GIT_TAG        1.1.10
+    GIT_SHALLOW    true
+)
+FetchContent_MakeAvailable(plog)
+FetchContent_Declare(
     argparse
     GIT_REPOSITORY https://github.com/p-ranav/argparse.git
     GIT_TAG v3.2
@@ -133,4 +140,5 @@ target_link_libraries(
   PRIVATE
   ${HTSLIB_TARGET}
   argparse
+  plog::plog
 )
