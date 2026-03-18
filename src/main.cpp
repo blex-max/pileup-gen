@@ -92,13 +92,6 @@ int main (int argc, char** argv) {
 
   plog::init<plog::TxtFormatter>(plog::debug, plog::streamStdErr);
 
-  auto ref_arg = cli.get<std::string> ("ref");
-  auto read_len_arg = static_cast<size_t> (cli.get<int> ("--read-len"));
-
-  if (read_len_arg > ref_arg.size()) {
-    throw std::runtime_error("too long!");
-  }
-
   // pileup_ev_s ev(5, 5, 5, 5);
   // pileup_props_basic props(ev, 10, {});
   // auto pile = simulate_pileup(props);
@@ -111,26 +104,21 @@ int main (int argc, char** argv) {
   //   std::cout << std::format ("{}{}", pad, seq) << "\n";
   // }
 
-  hts::SamOut out{};
-  {
-    auto hfp = hts_open("-", "w");
-    auto hdr = sam_hdr_init();
-    // NOTE attempting to write a bam1_t
-    // to file without having set SQ lines
-    // is a hard segfault if any RNAME
-    // is set in the bam1_t
-    // sam_hdr_add_line(hdr, "SQ",
-    //                  "SN", "chr1",
-    //                  "LN", "248956422",
-    //                  NULL);
-    if (const auto rc = sam_hdr_write(hfp, hdr);
-        rc < 0) {
-      std::cerr << "error writing hdr";
-      return 1;
-    };
-    out.ofp = hfp;
-    out.hdr = hdr;
-  }
+  auto hfp = hts_open("-", "w");
+  auto hdr = sam_hdr_init();
+  // NOTE attempting to write a bam1_t
+  // to file without having set SQ lines
+  // is a hard segfault if any RNAME
+  // is set in the bam1_t
+  // sam_hdr_add_line(hdr, "SQ",
+  //                  "SN", "chr1",
+  //                  "LN", "248956422",
+  //                  NULL);
+  if (const auto rc = sam_hdr_write(hfp, hdr);
+      rc < 0) {
+    std::cerr << "error writing hdr";
+    return 1;
+  };
 
   ReadV reads;
   if (cli.is_subcommand_used(sub_exact)) {
@@ -154,12 +142,17 @@ int main (int argc, char** argv) {
     }
   }
 
+  PLOGD << "writing reads";
   for (const auto& r : reads) {
-    if (sam_write1(out.ofp, out.hdr, r) < 0) {
+    if (sam_write1(hfp, hdr, r) < 0) {
       PLOGF << "failed to write";
       return 1;
     }
   }
+
+  hts_flush(hfp);
+  hts_close(hfp);
+  sam_hdr_destroy(hdr);
 
   return 0;
 }

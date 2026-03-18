@@ -14,6 +14,12 @@ inline void setup_seq_parser (argparse::ArgumentParser& args) {
 }
 
 inline ReadV run_seq (const argparse::ArgumentParser& args) {
-  auto ref_seq= args.get<std::string> ("ref");
+  auto ref_seq = args.get<std::string> ("ref");
+  auto read_len = static_cast<size_t> (args.get<int> ("--read-len"));
 
+  if (read_len > ref_seq.size()) {
+    throw std::runtime_error("too long!");
+  }
+
+  return {};
 }
