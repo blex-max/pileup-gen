@@ -186,7 +186,7 @@ struct FromTemplateParams {
 bam1_t* from_template_sequence (
     std::string_view template_seq,
     std::mt19937& rng,
-    FromTemplateParams tp
+    const FromTemplateParams& tp
 ) {
     assert (template_seq.size() >= tp.read_len);
     std::uniform_real_distribution<double> prob_gen (0.0, 1.0);

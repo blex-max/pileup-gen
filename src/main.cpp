@@ -7,7 +7,6 @@
 #include <htslib/hts.h>
 #include <htslib/sam.h>
 
-
 #include "sim_pile.hpp"
 #include "util.hpp"
 #include "subcommand_exact.hpp"
@@ -74,6 +73,11 @@
 // flexible but incomprehensibly complex config yaml!
 
 
+// NOTE: cli shape is demonstrative, not obligatory,
+// and will almost certainly need modification
+// in response to pratical challenges met
+// during implementation
+// (as with all code written so far I suppose).
 int main (int argc, char** argv) {
   argparse::ArgumentParser cli ("htsgen", "0.0.0");
 
