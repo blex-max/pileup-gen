@@ -1,6 +1,6 @@
 cmake_minimum_required (VERSION 3.22)
 
-project(pilegen
+project(htsgen
   LANGUAGES CXX
   VERSION 0.0.0
 )
@@ -88,21 +88,21 @@ if(MAKE_TEST)
 
   FetchContent_MakeAvailable(Catch2)
 
-  add_executable(test-pilegen tests/test.cpp)
-  target_include_directories(test-pilegen PRIVATE src)
-  target_link_libraries(test-pilegen PRIVATE
+  add_executable(test-htsgen tests/test.cpp)
+  target_include_directories(test-htsgen PRIVATE src)
+  target_link_libraries(test-htsgen PRIVATE
     Catch2::Catch2WithMain
     ${HTSLIB_TARGET}
   )
 endif(MAKE_TEST)
 # //--- end testing ---//
 
-add_executable(pilegen
+add_executable(htsgen
   src/main.cpp
   src/generate-reads.cpp
 )
 
-target_compile_options(pilegen PRIVATE
+target_compile_options(htsgen PRIVATE
     -Wall
     -Wextra
     -Wpedantic
@@ -119,24 +119,24 @@ target_compile_options(pilegen PRIVATE
 )
 
 if(ENABLE_DEBUG_FLAGS)
-  target_compile_options(pilegen PRIVATE
+  target_compile_options(htsgen PRIVATE
     -fsanitize=address,undefined
     -fno-omit-frame-pointer
     -O0 -g
   )
-  target_link_options(pilegen PRIVATE
+  target_link_options(htsgen PRIVATE
     -fsanitize=address,undefined
   )
 endif()
 
 target_include_directories(
-  pilegen
+  htsgen
   PRIVATE
   src
 )
 
 target_link_libraries(
-  pilegen
+  htsgen
   PRIVATE
   ${HTSLIB_TARGET}
   argparse

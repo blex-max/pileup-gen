@@ -4,7 +4,6 @@
 #include <map>
 
 #include "generate-reads.hpp"
-#include "generate-pileup.hpp"  // must factor out eventspec!!
 #include "read-ops.hpp"
 
 
@@ -30,6 +29,12 @@ struct MutationEvent {
     float intensity=1.0;  // 0-1 likelihood
 };
 
+
+/*
+NOTE: this function is presently retained for
+insight into the development of the shape of the program
+so the commentary can be written up later
+*/
 // trying to generate just one fuzzy read right now
 // and build up to multiple.
 // I'm imagining perhaps a while loop for each read of diminishing probability

@@ -1,19 +1,18 @@
-#include <htslib/hts.h>
-#include <htslib/sam.h>
-#include <iostream>
-
 #include <plog/Log.h>
 #include <plog/Initializers/ConsoleInitializer.h>
 #include <plog/Formatters/TxtFormatter.h>
 
 #include <argparse/argparse.hpp>
-#include <stdexcept>
 
-#include "hts-boundary-types.hpp"
+#include <htslib/hts.h>
+#include <htslib/sam.h>
+
+
 #include "sim_pile.hpp"
 #include "util.hpp"
 #include "subcommand_exact.hpp"
 #include "subcommand_seq.hpp"
+#include "subcommand_pileup.hpp"
 
 // USE CASES:
 // producing a set of reads aligned to a segment of reference
@@ -68,16 +67,28 @@
 // -> could provide multiple sparse query positions of events
 // to produce specified multi event reads
 // -> can apply models to read simulation
+//
+// NOTE: it must remain << easier to use this program
+// than to otherwise assemble the desired data.
+// Otherwise noone will use it. Beware the endlessly
+// flexible but incomprehensibly complex config yaml!
 
 
 int main (int argc, char** argv) {
-  argparse::ArgumentParser cli ("hts-gen", "0.0.0");
+  argparse::ArgumentParser cli ("htsgen", "0.0.0");
 
   argparse::ArgumentParser sub_exact ("exact");
+  sub_exact.add_description ("generate reads according to exact spec");
   setup_exact_parser (sub_exact);
   cli.add_subparser (sub_exact);
+
+  argparse::ArgumentParser sub_pileup ("pileup");
+  sub_pileup.add_description ("generate reads by specifying a pileup");
+  setup_pileup_parser(sub_pileup);
+  cli.add_subparser(sub_pileup);
   
   argparse::ArgumentParser sub_seq ("seq");
+  sub_seq.add_description ("generate reads via simulation of sequencing");
   setup_seq_parser (sub_seq);
   cli.add_subparser(sub_seq);
 
@@ -91,18 +102,6 @@ int main (int argc, char** argv) {
   }
 
   plog::init<plog::TxtFormatter>(plog::debug, plog::streamStdErr);
-
-  // pileup_ev_s ev(5, 5, 5, 5);
-  // pileup_props_basic props(ev, 10, {});
-  // auto pile = simulate_pileup(props);
-  // TODO add this as a subcommand to apb (pileup browser) as `apb print`
-  // for a very simple display to terminal
-  // std::cout << std::format ("{}", props.ref) << "\n";
-  // for (const auto r : pile) {
-  //   const std::string pad(static_cast<size_t> (r.b->core.pos), ' ');
-  //   const auto seq = get_seq(r.b);
-  //   std::cout << std::format ("{}{}", pad, seq) << "\n";
-  // }
 
   auto hfp = hts_open("-", "w");
   auto hdr = sam_hdr_init();
@@ -135,6 +134,16 @@ int main (int argc, char** argv) {
     PLOGD << "seq subcommand called";
     try {
       reads = run_seq (sub_seq);
+    }
+    catch (const std::exception& ex) {
+      PLOGF << ex.what();
+      return 1;
+    }
+  }
+  if (cli.is_subcommand_used(sub_pileup)) {
+    PLOGD << "pileup subcommand called";
+    try {
+      reads = run_pileup (sub_pileup);
     }
     catch (const std::exception& ex) {
       PLOGF << ex.what();

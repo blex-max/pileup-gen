@@ -1,3 +1,5 @@
+#pragma once
+
 #include <htslib/hts.h>
 #include <htslib/sam.h>
 #include <random>
