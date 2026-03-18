@@ -144,10 +144,10 @@ ReadV gen_fuzzy_reads
     In terms of implementation, the obvious next step is that edit
     script generation can be separated from mutation event generation,
     and creation of fuzzy reads with sequencing error (or any error model,
-    I'd suggest a callback here) can be created with.
+    I'd suggest a callback here) can be created with a fixed template sequence.
 
     Note that edit script generation will be context dependent.
-    So you need a right flank and can only start from ref.size() - read_len.
+    So you need a right flank and/or can only start from ref.size() - read_len.
     There's no get out of jail, that's just how it is!
 
     Ignore soft clipping for now - it is an aligner feature if sequences
@@ -161,5 +161,101 @@ ReadV gen_fuzzy_reads
     optional untemplated prefix/suffix run (primer/barcode contamination)
     */
 
+}
+
+// presently ignoring the "edit script"
+// intermediate representation of
+// a read and immediately materialising.
+// Can return to that concept later on
+// I think.
+// I also expect that there will be
+// a callback involved for read gen
+enum class ReadRegime : size_t {
+    none,
+    match,
+    mismatch
+};
+struct FromTemplateParams {
+    size_t read_len;
+};
+bam1_t* from_template_sequence (
+    std::string_view template_seq,
+    std::mt19937& rng,
+    FromTemplateParams tp
+) {
+    assert (template_seq.size() >= tp.read_len);
+    std::uniform_real_distribution<double> prob_gen (0.0, 1.0);
+    std::uniform_int_distribution<size_t> rpos_gen (0, template_seq.size() - tp.read_len);
+    const auto rpos_start = rpos_gen (rng);
+
+    // then apply context dependent model
+    // FSM
+    using RR = ReadRegime;
+    // in the future this can be fancier.
+    // There are two non-exclusive directions
+    // in which to think about this.
+    // A regime "op" can be a true operation
+    // script describing what happens as you
+    // progress through the read - match, mismatch,
+    // insertion, deletion.
+    // Or a it can be a higher level abstraction
+    // describing the state that the model
+    // should currently be in based on context
+    // e.g. "we are in a homopolymer run"
+    // and then it can emit one or more
+    // types of specific edit operations.
+    // If this machinery ultimately takes
+    // callbacks/objects, then both (or more)
+    // approaches can be used as long as they
+    // return the same result
+    using RegimeOp = std::pair<RR, size_t>;
+    using RegimeScript = std::vector<RegimeOp>;
+    RegimeScript rs;
+    RegimeOp curr_op{RR::match, 0};
+    const auto finalise_op = [&rs, &curr_op] () {
+        rs.emplace_back(curr_op.first, curr_op.second);
+        curr_op.second = 0;  // reset len
+    };
+    for (size_t qpos_counter = 0; qpos_counter < tp.read_len; ++qpos_counter) {
+        ++curr_op.second;
+        switch (curr_op.first) {
+            case (RR::match):
+                if (prob_gen (rng) < 0.2) {
+                    finalise_op();
+                    curr_op.first = RR::mismatch;
+                }
+                break;
+            case (RR::mismatch):
+                if (prob_gen (rng) < 0.9) {
+                    finalise_op();
+                    curr_op.first = RR::match;
+                }
+                break;
+            default:
+                throw std::runtime_error ("unknown regime");
+        }
+    }
+    finalise_op();  // finalise last
+
+    // materialise read
+    // very simple for now
+    readops::ReadData rd;
+    auto rpos_cursor = rpos_start;
+    for (const auto rop : rs) {
+        switch (rop.first) {
+            case (RR::match):
+                rd.qseq.append(template_seq.substr(rpos_cursor, rop.second));
+                rpos_cursor += rop.second;
+                break;
+            case (RR::mismatch):
+                rd.qseq.append(rop.second, 'X');
+                rpos_cursor += rop.second;
+                break;
+            default:
+                throw std::runtime_error ("unknown regime");
+        }
+    }
+
+    return readops::create_bam1(rd);
 }
 

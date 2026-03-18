@@ -77,6 +77,7 @@ int main(int argc, char** argv) {
     .nargs(1)
     .scan<'i', int>();
 
+  // NEXT/TODO: subcommands
 
   try {
     cli.parse_args(argc, argv);    // Example: ./main --color red --color green --color blue
