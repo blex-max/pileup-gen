@@ -88,7 +88,9 @@ if(MAKE_TEST)
 
   FetchContent_MakeAvailable(Catch2)
 
-  add_executable(test-htsgen tests/test.cpp)
+  add_executable(test-htsgen
+    tests/test.cpp
+  )
   target_include_directories(test-htsgen PRIVATE src)
   target_link_libraries(test-htsgen PRIVATE
     Catch2::Catch2WithMain
@@ -99,7 +101,7 @@ endif(MAKE_TEST)
 
 add_executable(htsgen
   src/main.cpp
-  src/generate-reads.cpp
+  src/generate-pileup.cpp
 )
 
 target_compile_options(htsgen PRIVATE

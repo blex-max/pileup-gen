@@ -7,8 +7,9 @@
 #include <htslib/hts.h>
 #include <htslib/sam.h>
 
-#include "subcommand_pileup.hpp"
+#include "subcommand-pileup.hpp"
 
+/* OLD PRE DEV LOG DESIGN COMMENTARY */
 // USE CASES:
 // producing a set of reads aligned to a segment of reference
 // with "random" noise.
@@ -45,24 +46,6 @@
 // from an input array of event counts at position x
 // produce a set of reads which fulfills those counts at pileup postion x
 
-// at CLI:
-// from an input tsv/csv of events + config
-// + optional bam header to copy
-// + optional reference fasta + region spec
-// and output depending on mode:
-// -> produce a fastq of reads
-// -> produce a bam file of unaligned reads
-// -> produce a bam file of aligned reads
-// Quick shorthands for common use cases
-
-
-// NOTES:
-// -> could provide multiple sparse genomic positions of events
-// to produce alignment over region
-// -> could provide multiple sparse query positions of events
-// to produce specified multi event reads
-// -> can apply models to read simulation
-//
 // NOTE: it must remain << easier to use this program
 // than to otherwise assemble the desired data.
 // Otherwise noone will use it. Beware the endlessly
