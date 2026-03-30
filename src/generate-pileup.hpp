@@ -84,23 +84,21 @@ struct PileupCoordinates {
 
 
 // NOTE WIP
-struct PileupSharedParams {
+struct PileupParams {
   PileupCoordinates coord;
-  // can provide any single, and the others will be derived
   std::string_view ref_region;  // ref pos is center, therefore N must be odd
-  uint16_t read_len;         // <= (ref_region.size() + 1) / 2
+  uint16_t read_len;            // must be <= (ref_region.size() / 2) - 1
 };
 
 
 // output
 struct PileupData {
   // NOTE: destruction will be in reverse order.
-  // make_unique default-initalises, prefer new T[n]{}
+  // NOTE: make_unique default-initalises, prefer new T[n]{}
   std::unique_ptr<bam1_t[]> b1arr;
   std::unique_ptr<bam_pileup1_t[]> p1arr;
   size_t nread;  // must be set
 };
-
 
 
 struct PileupReadSet {
@@ -132,9 +130,12 @@ inline void apply_event
 };
 
 
+// TODO flesh out cigar awareness, application of flags, and anything else
+// requiste for the result to properly represent the desired pileup
 // explicit specification
 inline PileupData generate_pileup
-(const PileupSharedParams& pileup_pars, std::span<const std::pair<size_t, PileupReadSet>> sets, std::mt19937& rng) {
+(const PileupParams& pileup_pars, std::span<const std::pair<size_t, PileupReadSet>> sets, std::mt19937& rng)
+{
     size_t nsum_reads = 0;
     for (const auto& [nset_reads, _] : sets) {
       nsum_reads += nset_reads;
@@ -152,7 +153,7 @@ inline PileupData generate_pileup
     const auto pileup_gpos = pileup_pars.coord.gpos;
     const auto read_len = pileup_pars.read_len;
 
-    size_t mem_block_i= 0;
+    size_t mem_block_i = 0;
     for (const auto& [nread_ev, set_spec] : sets) {
       const auto mem_block_end = nread_ev + mem_block_i;
 
@@ -183,6 +184,7 @@ inline PileupData generate_pileup
           .mapq=0
         };
 
+        // apply perturbation as specified, or no op.
         apply_event (set_spec.event, rs, pileup_gpos);
 
         readops::set_bam1 (rs, &b1);
@@ -199,10 +201,9 @@ inline PileupData generate_pileup
           // Likely to factor out to a function later
           // to initialise based on bam1_t + args.
         };
-
       }
 
-      mem_block_i = mem_block_end;
+      mem_block_i = mem_block_end;  // move arena ptr
 
     }
 

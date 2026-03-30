@@ -42,14 +42,18 @@
   of appropriate data" - which in this specific
   context I think is more tractable for this
   codebase. And of course it doesn't preclude
-  providing common shorthands.
+  providing common shorthands. I think that is
+  a better approach for this entire project,
+  not just pileups. i.e. rather than setting up
+  config machinery for various scenarios like
+  empty reads, instead make it easy for the
+  user to python script it themselves.
 */
 
 
 inline void setup_pileup_parser (argparse::ArgumentParser&) {
   // TODO
 }
-
 
 
 inline PileupData run_pileup
@@ -101,5 +105,6 @@ inline PileupData run_pileup
     {nreads, set_b},
     {nreads, set_ref}
   };
+  // NOTE: returned reads are somewhat incomplete, e.g unalgined
   return generate_pileup (ppars, evs, rng);
 }
