@@ -1,8 +1,7 @@
 #pragma once
 
+#include <cstdint>
 #include <format>
-#include <iostream>
-#include <stdexcept>
 #include <string>
 
 #include <htslib/sam.h>
@@ -16,8 +15,9 @@ namespace readops {
 // then streamline once working
 // - there's obviously some overlap between
 // structs/common properties between functions
+// NOTE: string not string_view
 using CigV = std::vector<std::pair<size_t, char>>;
-struct ReadData {
+struct ReadSpec {
   std::string qseq{};   // emtpy == NULL
   std::string qqual{};  // empty == NULL
   std::string qname{};  // empty == NULL
@@ -31,18 +31,16 @@ struct ReadData {
   // TLEN/isize left out at least for now
   // as the field is problematic and nonstandard
   // (per discussion with sam team).
-  // l_aux left out *for now*, under further consideration
+  // aux left out for now, due further consideration
 };
 
 // wrapper for bam_set1
-inline bam1_t* create_bam1 (const ReadData& ra) {
-  auto b = bam_init1();
-
+inline int set_bam1 (const ReadSpec& rs, bam1_t* b) {
   std::string cig_s;
-  size_t cig_nop = ra.qcig.size();
+  size_t cig_nop = rs.qcig.size();
   if (cig_nop > 0) {
     cig_s.reserve(cig_nop);
-    for (const auto cp : ra.qcig) {
+    for (const auto cp : rs.qcig) {
       cig_s.append(std::format ("{}{}", cp.first, cp.second));
     }
     // TODO check number processed (the return of *_parse_cigar)
@@ -57,32 +55,30 @@ inline bam1_t* create_bam1 (const ReadData& ra) {
 
   const auto rc = bam_set1 (
       b,
-      ra.qname.size(),
-      ra.qname.empty() ? NULL : ra.qname.c_str(),
-      cig_nop > 0 ? ra.flag : ra.flag | BAM_FUNMAP ,
+      rs.qname.size(),
+      rs.qname.empty() ? NULL : rs.qname.c_str(),
+      cig_nop > 0 ? rs.flag : rs.flag | BAM_FUNMAP ,
       -1,
-      ra.lmost_pos,
-      ra.mapq,
+      rs.lmost_pos,
+      rs.mapq,
       cig_nop,
       cig_nop > 0 ? cig_buf : NULL,  // cigar set later
       -1,
-      ra.mate_lmost_pos,
+      rs.mate_lmost_pos,
       0,  // isize ignored for now
-      ra.qseq.size(),
-      ra.qseq.empty() ? NULL : ra.qseq.c_str(),
-      ra.qqual.empty() ? NULL : ra.qqual.c_str(),
+      rs.qseq.size(),
+      rs.qseq.empty() ? NULL : rs.qseq.c_str(),
+      rs.qqual.empty() ? NULL : rs.qqual.c_str(),
       0  // TODO, perhaps
   );
 
-  if (rc < 0) {
-    throw std::runtime_error ("failed to set bam1_t");
-  }
+  free (cig_buf);
 
-  return b;
+  return rc;
 };
 
 
-// probably unnecessary
+// of undetermined utility
 void ins (bam1_t* b, size_t pos, std::string ins);
 void del (bam1_t* b, size_t pos, size_t len);
 void sub (bam1_t* b, size_t pos, char base);

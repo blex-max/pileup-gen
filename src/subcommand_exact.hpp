@@ -18,7 +18,7 @@ inline ReadV run_exact (const argparse::ArgumentParser& args) {
   auto template_seq = args.get<std::string> ("template");
   auto n = static_cast<size_t> (args.get<int> ("-n"));
 
-  const auto spec = readops::ReadData{template_seq};
+  const auto spec = readops::ReadSpec{template_seq};
 
   return generate_reads({{n, spec}});
 }

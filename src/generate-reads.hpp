@@ -1,7 +1,6 @@
 #pragma once
 
 #include <cstddef>
-#include <functional>
 #include <vector>
 
 #include <htslib/sam.h>
@@ -23,7 +22,7 @@
 // more general model based simulation like "poorly aligning reads" and so on)
 
 using ReadV = std::vector<bam1_t*>;
-using ReadArgV = std::vector<std::pair<size_t, readops::ReadData>>;
+using ReadArgV = std::vector<std::pair<size_t, readops::ReadSpec>>;
 
 
 ReadV generate_reads (const ReadArgV& rav);

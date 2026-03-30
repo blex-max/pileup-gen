@@ -123,11 +123,12 @@ int main (int argc, char** argv) {
     return 1;
   };
 
-  ReadV reads;
+  bam1_t* read_arr;
+  size_t nread = 0;
   if (cli.is_subcommand_used(sub_exact)) {
     PLOGD << "exact subcommand called";
     try {
-      reads = run_exact (sub_exact);
+      // reads = run_exact (sub_exact);
     }
     catch (const std::exception& ex) {
       PLOGF << ex.what();
@@ -137,7 +138,7 @@ int main (int argc, char** argv) {
   if (cli.is_subcommand_used(sub_seq)) {
     PLOGD << "seq subcommand called";
     try {
-      reads = run_seq (sub_seq);
+      // reads = run_seq (sub_seq);
     }
     catch (const std::exception& ex) {
       PLOGF << ex.what();
@@ -147,7 +148,17 @@ int main (int argc, char** argv) {
   if (cli.is_subcommand_used(sub_pileup)) {
     PLOGD << "pileup subcommand called";
     try {
-      reads = run_pileup (sub_pileup);
+      // pileup is statically allocated because
+      // the return type PileupData holds
+      // unique ptrs, which need to live till end
+      // of program. So much for streamlined memory management.
+      // Might as well just pass in a preallocated block of
+      // max_depth or similar. Don't think about this too hard
+      // until the library shape and higher level bindings are
+      // available though.
+      static auto pileup = run_pileup (sub_pileup);
+      read_arr = pileup.b1arr.get();
+      nread = pileup.nread;
     }
     catch (const std::exception& ex) {
       PLOGF << ex.what();
@@ -156,8 +167,8 @@ int main (int argc, char** argv) {
   }
 
   PLOGD << "writing reads";
-  for (const auto& r : reads) {
-    if (sam_write1(hfp, hdr, r) < 0) {
+  for (size_t i = 0; i < nread; ++i) {
+    if (sam_write1(hfp, hdr, read_arr + i) < 0) {
       PLOGF << "failed to write";
       return 1;
     }

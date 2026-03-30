@@ -8,10 +8,10 @@
 
 
 ReadV generate_reads (const ReadArgV& rav) {
-    ReadV out;
+    ReadV out(rav.size());
     for (const auto& [n, args] : rav) {
         for (size_t i = 0; i < n; ++i) {
-            out.push_back (readops::create_bam1(args));
+            readops::set_bam1(args, out[i]);
         }
     }
     return out;
@@ -244,7 +244,7 @@ bam1_t* from_template_sequence (
 
     // materialise read
     // very simple for now
-    readops::ReadData rd;
+    readops::ReadSpec rd;
     auto rpos_cursor = rpos_start;
     for (const auto rop : rs) {
         switch (rop.first) {
@@ -261,6 +261,9 @@ bam1_t* from_template_sequence (
         }
     }
 
-    return readops::create_bam1(rd);
+    // placeholder
+    auto b1 = new bam1_t;
+    readops::set_bam1(rd, b1);
+    return b1;
 }
 
