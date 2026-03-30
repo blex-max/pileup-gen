@@ -48,6 +48,15 @@
   config machinery for various scenarios like
   empty reads, instead make it easy for the
   user to python script it themselves.
+
+  On that final note, I think centring a CLI
+  for this kind of small pileup generation was
+  a misstep. This is library code that should be
+  used in a scripting language. As such this
+  subcommand is to be used something like a
+  script in which we can call the core generation,
+  without having to commit to figuring out
+  proper interop at this early stage.
 */
 
 
@@ -64,7 +73,7 @@ inline PileupData run_pileup
   const uint16_t read_len = 50;
   const std::string ref (read_len + read_len, 'G');
   const size_t nreads = 10;
-  PileupSharedParams ppars {
+  PileupParams ppars {
     .coord={
       .gstart=0,
       .gend=static_cast<hts_pos_t> (ref.size()),
