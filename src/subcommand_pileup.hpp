@@ -56,12 +56,20 @@
   subcommand is to be used something like a
   script in which we can call the core generation,
   without having to commit to figuring out
-  proper interop at this early stage.
+  proper interop at this early stage. On reflection,
+  I wonder if a CLI may never be the right shape
+  really for this kind of simulation. It seems
+  that simulation specification may well be better
+  off in a high level scripting language, perfomed
+  by composing functions and helpers.
 */
 
 
-inline void setup_pileup_parser (argparse::ArgumentParser&) {
-  // TODO
+inline void setup_pileup_parser
+(argparse::ArgumentParser&)
+{
+  /* add args for CLI */
+  /* unused */
 }
 
 
@@ -114,6 +122,6 @@ inline PileupData run_pileup
     {nreads, set_b},
     {nreads, set_ref}
   };
-  // NOTE: returned reads are somewhat incomplete, e.g unalgined
+  // NOTE: returned reads are somewhat incomplete, e.g unaligned
   return generate_pileup (ppars, evs, rng);
 }

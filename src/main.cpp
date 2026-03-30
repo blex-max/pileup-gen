@@ -7,10 +7,6 @@
 #include <htslib/hts.h>
 #include <htslib/sam.h>
 
-#include "sim_pile.hpp"
-#include "util.hpp"
-#include "subcommand_exact.hpp"
-#include "subcommand_seq.hpp"
 #include "subcommand_pileup.hpp"
 
 // USE CASES:
@@ -81,21 +77,11 @@
 int main (int argc, char** argv) {
   argparse::ArgumentParser cli ("htsgen", "0.0.0");
 
-  argparse::ArgumentParser sub_exact ("exact");
-  sub_exact.add_description ("generate reads according to exact spec");
-  setup_exact_parser (sub_exact);
-  cli.add_subparser (sub_exact);
-
   argparse::ArgumentParser sub_pileup ("pileup");
   sub_pileup.add_description ("generate reads by specifying a pileup");
   setup_pileup_parser(sub_pileup);
   cli.add_subparser(sub_pileup);
   
-  argparse::ArgumentParser sub_seq ("seq");
-  sub_seq.add_description ("generate reads via simulation of sequencing");
-  setup_seq_parser (sub_seq);
-  cli.add_subparser(sub_seq);
-
   try {
     cli.parse_args(argc, argv);
   }
@@ -125,26 +111,6 @@ int main (int argc, char** argv) {
 
   bam1_t* read_arr;
   size_t nread = 0;
-  if (cli.is_subcommand_used(sub_exact)) {
-    PLOGD << "exact subcommand called";
-    try {
-      // reads = run_exact (sub_exact);
-    }
-    catch (const std::exception& ex) {
-      PLOGF << ex.what();
-      return 1;
-    }
-  }
-  if (cli.is_subcommand_used(sub_seq)) {
-    PLOGD << "seq subcommand called";
-    try {
-      // reads = run_seq (sub_seq);
-    }
-    catch (const std::exception& ex) {
-      PLOGF << ex.what();
-      return 1;
-    }
-  }
   if (cli.is_subcommand_used(sub_pileup)) {
     PLOGD << "pileup subcommand called";
     try {
@@ -157,19 +123,20 @@ int main (int argc, char** argv) {
       // until the library shape and higher level bindings are
       // available though.
       static auto pileup = run_pileup (sub_pileup);
-      read_arr = pileup.b1arr.get();
+      read_arr = pileup.b1arr.get();  // non-owning
       nread = pileup.nread;
     }
     catch (const std::exception& ex) {
-      PLOGF << ex.what();
+      PLOGF << std::format ("Error during pileup generation: {}", ex.what());
       return 1;
     }
   }
 
   PLOGD << "writing reads";
   for (size_t i = 0; i < nread; ++i) {
-    if (sam_write1(hfp, hdr, read_arr + i) < 0) {
-      PLOGF << "failed to write";
+    const auto rc = sam_write1(hfp, hdr, read_arr + i);
+    if (rc < 0) {
+      PLOGF << std::format ("failed to write bam1_t, error code {}", rc);
       return 1;
     }
   }
