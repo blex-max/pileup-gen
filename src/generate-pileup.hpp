@@ -5,6 +5,14 @@
 #include <random>
 
 
+// NOTE:
+// it would be useful I think to take
+// user provided generators on the testing
+// library side. Rather than infinitely speccing
+// out options, allow provision of callbacks for
+// any given property. TODO
+
+
 enum struct BaseEvents : size_t {
   rand,
   del,

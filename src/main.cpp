@@ -16,7 +16,7 @@
 // USE CASES:
 // producing a set of reads aligned to a segment of reference
 // with "random" noise.
-// 
+//
 // producing a set of reads constituting a pileup at position x
 // with a known count of each property of interest.
 //
