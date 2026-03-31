@@ -12,7 +12,7 @@
 
 #include "read-ops.hpp"
 
-/* see "subcommand-pileup.hpp" for commentary on
+/* see main.cpp for commentary on
 the higher level design and use of this functionality */
 
 
