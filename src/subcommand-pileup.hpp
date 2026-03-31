@@ -68,6 +68,7 @@
 inline void setup_pileup_parser
 (argparse::ArgumentParser&)
 {
+  
   /* add args for CLI */
   /* unused */
 }
@@ -85,7 +86,8 @@ inline PileupData run_pileup
     .coord={
       .gstart=0,
       .gend=static_cast<hts_pos_t> (ref.size()),
-      .gpos= read_len - 1
+      .gpos= read_len - 1,
+      .tid=0
     },
     .ref_region=ref,
     .read_len=read_len

@@ -36,7 +36,7 @@ enum BaseEvents : size_t {
 struct EventSpec {
   BaseEvents base;
   int indel=0;        // <0 del, >0 ins, length indel
-  std::string ins{};  // empty is random, mismatched length is err
+  std::string ins{};  // .size() == .indel
 };
 
 
@@ -44,13 +44,14 @@ struct PileupCoordinates {
   hts_pos_t gstart;
   hts_pos_t gend;
   hts_pos_t gpos;
+  int32_t tid;
 };
 
 
 // NOTE WIP
 struct PileupParams {
   PileupCoordinates coord;
-  std::string_view ref_region;  // ref pos is center, therefore N must be odd
+  std::string_view ref_region;
   uint16_t read_len;            // must be <= (ref_region.size() / 2) - 1
 };
 
@@ -65,12 +66,21 @@ struct PileupData {
 };
 
 
+// Manifest describing a set
+// of reads found in the total
+// pileup. Used to materialise
+// reads of that set.
 struct PileupReadSet {
   EventSpec event;
-  std::function<uint16_t(std::mt19937&)> qpos_cb;  // callback
+  std::function<uint16_t(std::mt19937&)> qpos_cb;  // callback generating a
+                                                   // query position from a distribution
+                                                   // (or otherwise).
+  // further properties TODO
 };
 
 
+// mutate a read manifest
+// to apply a specified pileup event
 void apply_event
 (const EventSpec& event, readops::ReadSpec& read, hts_pos_t event_gpos);
 

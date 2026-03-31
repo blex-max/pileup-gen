@@ -9,9 +9,10 @@ set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
 
-option(ENABLE_DEBUG_FLAGS "Enable extra debug compile options" ON)
-option(MAKE_TEST "Compile and run tests binary" ON)
+option(ENABLE_DEBUG_FLAGS "Enable extra debug compile options" OFF)
+option(MAKE_TEST "Compile and run tests binary" OFF)
 
 # user paths to htslib if needed
 set(HTSLIB_INCLUDE_DIR "" CACHE PATH "Path to directory that contains htslib/hts.h")

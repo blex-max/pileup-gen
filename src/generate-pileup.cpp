@@ -1,4 +1,5 @@
 #include "generate-pileup.hpp"
+#include "read-ops.hpp"
 #include "util.hpp"
 
 // TODO/CRITICAL not cigar aware!
@@ -46,6 +47,7 @@ PileupData generate_pileup
     const auto ref_seq = pileup_pars.ref_region;
     const auto pileup_gstart = pileup_pars.coord.gstart;
     const auto pileup_gpos = pileup_pars.coord.gpos;
+    const auto pileup_tid = pileup_pars.coord.tid;
     const auto read_len = pileup_pars.read_len;
 
     size_t mem_block_i = 0;
@@ -55,6 +57,15 @@ PileupData generate_pileup
       for (size_t i=mem_block_i; i < mem_block_end; ++i) {
         auto& b1 = out.b1arr[i];
         auto& p1 = out.p1arr[i];
+
+        /* materialise read according to set spec */
+
+        /*
+          NOTE: the create-then-apply flow here is a compromise
+          for simplicity and speed. It may be wholly sufficient,
+          or it may need revisiting.
+          NOTE: can apply sequencing model at creation
+        */
 
         const auto qpos = set_spec.qpos_cb(rng);
         const auto rstart = pileup_gpos - qpos;
@@ -70,11 +81,11 @@ PileupData generate_pileup
           )),
           .qqual=std::string (read_len, 37),
           .qname={},
-          .qcig={},
+          .qcig={{read_len, readops::cigarcode::match}},
           .lmost_pos=rstart,
           .mate_lmost_pos=0,
-          .flag=BAM_FUNMAP,
-          .tid=0,
+          .flag=0,
+          .tid=pileup_tid,
           .mate_tid=0,
           .mapq=0
         };

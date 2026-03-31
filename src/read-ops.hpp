@@ -1,7 +1,6 @@
 #pragma once
 
 #include <cstdint>
-#include <format>
 #include <string>
 
 #include <htslib/sam.h>
@@ -10,13 +9,17 @@
 
 namespace readops {
 
-// NOTE
-// create this functionality first,
-// then streamline once working
-// - there's obviously some overlap between
-// structs/common properties between functions
-// NOTE: string not string_view
-using CigV = std::vector<std::pair<size_t, char>>;
+enum cigarcode : int {
+  match = BAM_CMATCH,
+  equal = BAM_CEQUAL,
+  diff = BAM_CDIFF,
+  del = BAM_CDEL,
+  ins = BAM_CINS,
+  softclip = BAM_CSOFT_CLIP,
+  // other codes unused
+};
+
+using CigV = std::vector<std::pair<size_t, cigarcode>>;
 struct ReadSpec {
   std::string qseq{};   // emtpy == NULL
   std::string qqual{};  // empty == NULL
@@ -36,22 +39,15 @@ struct ReadSpec {
 
 // wrapper for bam_set1
 inline int set_bam1 (const ReadSpec& rs, bam1_t* b) {
-  std::string cig_s;
+
   size_t cig_nop = rs.qcig.size();
+  uint32_t* cig_arr = static_cast<uint32_t*> (new uint32_t[cig_nop]);
   if (cig_nop > 0) {
-    cig_s.reserve(cig_nop);
-    for (const auto cp : rs.qcig) {
-      cig_s.append(std::format ("{}{}", cp.first, cp.second));
+    for (size_t opi = 0; opi < cig_nop; ++opi) {
+      const auto op = rs.qcig[opi];
+      cig_arr[opi] = bam_cigar_gen (op.first, op.second);
     }
-    // TODO check number processed (the return of *_parse_cigar)
-  } else {
-    cig_s = "*";
   }
-  uint32_t  *cig_buf = static_cast<uint32_t *> (
-      malloc (cig_nop * sizeof (uint32_t))
-  );
-  size_t buf_alloc;
-  sam_parse_cigar (cig_s.c_str(), NULL, &cig_buf, &buf_alloc);
 
   const auto rc = bam_set1 (
       b,
@@ -62,7 +58,7 @@ inline int set_bam1 (const ReadSpec& rs, bam1_t* b) {
       rs.lmost_pos,
       rs.mapq,
       cig_nop,
-      cig_nop > 0 ? cig_buf : NULL,  // cigar set later
+      cig_nop > 0 ? cig_arr : NULL,  // cigar set later
       -1,
       rs.mate_lmost_pos,
       0,  // isize ignored for now
@@ -72,16 +68,16 @@ inline int set_bam1 (const ReadSpec& rs, bam1_t* b) {
       0  // TODO, perhaps
   );
 
-  free (cig_buf);
+  delete cig_arr;
 
   return rc;
 };
 
 
 // of undetermined utility
-void ins (bam1_t* b, size_t pos, std::string ins);
-void del (bam1_t* b, size_t pos, size_t len);
-void sub (bam1_t* b, size_t pos, char base);
+// void ins (bam1_t* b, size_t pos, std::string ins);
+// void del (bam1_t* b, size_t pos, size_t len);
+// void sub (bam1_t* b, size_t pos, char base);
 // void clip (bam1_t* b);
 
 // void assign_qual (bam1_t* b, QualModel qual);

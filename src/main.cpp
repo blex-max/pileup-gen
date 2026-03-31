@@ -74,19 +74,20 @@ int main (int argc, char** argv) {
     return 1;
   }
 
-  plog::init<plog::TxtFormatter>(plog::debug, plog::streamStdErr);
+  plog::init<plog::TxtFormatter> (plog::debug, plog::streamStdErr);
 
-  auto hfp = hts_open("-", "w");
-  auto hdr = sam_hdr_init();
+  auto hfp = hts_open ("-", "w");
+  auto hdr = sam_hdr_init ();
   // NOTE attempting to write a bam1_t
   // to file without having set SQ lines
   // is a hard segfault if any RNAME
   // is set in the bam1_t
-  // sam_hdr_add_line(hdr, "SQ",
-  //                  "SN", "chr1",
-  //                  "LN", "248956422",
-  //                  NULL);
-  if (const auto rc = sam_hdr_write(hfp, hdr);
+  sam_hdr_add_line (hdr, "SQ",
+                   "SN", "chr1",
+                   "LN", "248956422",
+                   NULL);
+  // const auto pileup_tid = sam_hdr_name2tid(hdr, "chr1");
+  if (const auto rc = sam_hdr_write (hfp, hdr);
       rc < 0) {
     std::cerr << "error writing hdr";
     return 1;
