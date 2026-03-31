@@ -66,3 +66,37 @@ by composing functions and helpers.
 I'm optimistic that this is a more refined
 and product-focused prototype direction.
 
+
+# blex-max 31/03/26
+
+Did some further stripping, saving an old initial comment
+on design philosophy here as it could be useful in the future:
+
+"""
+USE CASES:
+producing a set of reads aligned to a segment of reference
+with "random" noise.
+producing a set of reads constituting a pileup at position x
+with a known count of each property of interest.
+producing a set of reads incorporating target feature/s
+e.g. 100 random reads with the motif "ATTTA". Think crispr
+quantification.
+And more simply, being able to generate a to-spec SAM file
+with e.g. a single read pair with feature x, is a common
+testing pattern.
+
+FUTURE:
+By implementing this functionality well, it should then become
+plausible to string them together to generate e.g.
+a BAM file of variants to spec
+
+NOTE: it must remain << easier to use this program
+than to otherwise assemble the desired data.
+Otherwise noone will use it. Beware the endlessly
+flexible but incomprehensibly complex config yaml!
+"""
+
+The last note is definitely still valid in particular.
+
+Also simplified cigar array generation having found
+`bam_cigar_gen ()`.

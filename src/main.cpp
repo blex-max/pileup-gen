@@ -1,3 +1,5 @@
+#include <random>
+
 #include <plog/Log.h>
 #include <plog/Initializers/ConsoleInitializer.h>
 #include <plog/Formatters/TxtFormatter.h>
@@ -7,64 +9,70 @@
 #include <htslib/hts.h>
 #include <htslib/sam.h>
 
-#include "subcommand-pileup.hpp"
-
-/* OLD PRE DEV LOG DESIGN COMMENTARY */
-// USE CASES:
-// producing a set of reads aligned to a segment of reference
-// with "random" noise.
-//
-// producing a set of reads constituting a pileup at position x
-// with a known count of each property of interest.
-//
-// producing a set of reads incorporating target feature/s
-// e.g. 100 random reads with the motif "ATTTA". Think crispr
-// quantification.
-// And more simply, being able to generate a to-spec SAM file
-// with e.g. a single read pair with feature x, is a common
-// testing pattern.
-//
-// Originally, I envisaged an API for sequential unit testing
-// applying edits to a template read, but on reflection
-// it is probably conceptually simpler to generate a new one
-// based on the same set of arguments modifying equivalently
-// to the desired edit operation. In other words
-// functionality for creating a single read from template
-// arguments.
-//
-// NOTE: the important point to elucidate for API design
-// is how the operations needed for these use cases overlap
-
-// FUTURE:
-// By implementing this functionality well, it should then become
-// plausible to string them together to generate e.g.
-// a BAM file of variants to spec
+#include "generate-pileup.hpp"
 
 
-// SKETCH:
-// minimal:
-// from an input array of event counts at position x
-// produce a set of reads which fulfills those counts at pileup postion x
+/*
+  For an immediate use case, I want to generate
+  a pileup with 3 sets of reads, N, M, and R.
+  Set N reads have variant X and tightly clustered
+  query positions. Set M and set R reads have equivalently
+  and uniformly distributed query positions.
+  Set M reads additionally have variant Y.
+  Set R reads are identical to reference.
 
-// NOTE: it must remain << easier to use this program
-// than to otherwise assemble the desired data.
-// Otherwise noone will use it. Beware the endlessly
-// flexible but incomprehensibly complex config yaml!
+  My intuitive sense of the appropriate pattern
+  is to take a count and a struct of per-property
+  callables for each set. In other words, A bag of
+  independently swappable rules for making members of
+  a set. Note however that with increasing complexity
+  of the modelled reads some if not all properties
+  are interdependent upon one another at generation
+  time. Nevertheless I think the sensible approach
+  is to make this simple example and then grow from
+  there rather than trying to overdesign from the outset.
+
+  In any case, I'm reasonable sure of the general concept
+  and design re generation of sets of pileup reads.
+  A good final design should ensure within reason that
+  1) sets are modular, 2) it is easy to assemble
+  overlapping sets, 3) later reuse for common cases is
+  easy, and 4) users of the library can easily
+  provide their own generators for use in testing.
+
+  The latter point is particularly important. For the
+  library code, it shifts the question from "what
+  set of operations is useful to the user" to
+  "how can we most seamlessly allow user generation
+  of appropriate data" - which in this specific
+  context I think is more tractable for this
+  codebase. And of course it doesn't preclude
+  providing common shorthands. I think that is
+  a better approach for this entire project,
+  not just pileups. i.e. rather than setting up
+  config machinery for various scenarios like
+  empty reads, instead make it easy for the
+  user to python script it themselves.
+
+  On that final note, I think centring a CLI
+  for this kind of small pileup generation was
+  a misstep. This is library code that should be
+  used in a scripting language. As such this
+  subcommand is to be used something like a
+  script in which we can call the core generation,
+  without having to commit to figuring out
+  proper interop at this early stage. On reflection,
+  I wonder if a CLI may never be the right shape
+  really for this kind of simulation. It seems
+  that simulation specification may well be better
+  off in a high level scripting language, perfomed
+  by composing functions and helpers.
+*/
 
 
-// NOTE: cli shape is demonstrative, not obligatory,
-// and will almost certainly need modification
-// in response to pratical challenges met
-// during implementation
-// (as with all code written so far I suppose).
-int main (int argc, char** argv) {
+int main (int argc, char** argv)
+{
   argparse::ArgumentParser cli ("htsgen", "0.0.0");
-
-  argparse::ArgumentParser sub_pileup ("pileup");
-  sub_pileup.add_description ("generate reads by specifying a pileup");
-  setup_pileup_parser(sub_pileup);
-  cli.add_subparser(sub_pileup);
-  
   try {
     cli.parse_args(argc, argv);
   }
@@ -80,44 +88,71 @@ int main (int argc, char** argv) {
   auto hdr = sam_hdr_init ();
   // NOTE attempting to write a bam1_t
   // to file without having set SQ lines
-  // is a hard segfault if any RNAME
+  // is a segfault if any RNAME
   // is set in the bam1_t
   sam_hdr_add_line (hdr, "SQ",
                    "SN", "chr1",
                    "LN", "248956422",
                    NULL);
-  // const auto pileup_tid = sam_hdr_name2tid(hdr, "chr1");
   if (const auto rc = sam_hdr_write (hfp, hdr);
       rc < 0) {
     std::cerr << "error writing hdr";
     return 1;
   };
 
-  bam1_t* read_arr;
-  size_t nread = 0;
-  if (cli.is_subcommand_used(sub_pileup)) {
-    PLOGD << "pileup subcommand called";
-    try {
-      // pileup is statically allocated because
-      // the return type PileupData holds
-      // unique ptrs, which need to live till end
-      // of program. So much for streamlined memory management.
-      // Might as well just pass in a preallocated block of
-      // max_depth or similar. Don't think about this too hard
-      // until the library shape and higher level bindings are
-      // available though.
-      static auto pileup = run_pileup (sub_pileup);
-      read_arr = pileup.b1arr.get();  // non-owning
-      nread = pileup.nread;
-    }
-    catch (const std::exception& ex) {
-      PLOGF << std::format ("Error during pileup generation: {}", ex.what());
-      return 1;
-    }
-  }
+  /* setup pileup description */
+  std::mt19937 rng;
+  const uint16_t read_len = 50;
+  const std::string ref (read_len + read_len, 'G');
+  const size_t nreads = 10;
+  PileupParams ppars {
+    .coord={
+      .gstart=0,
+      .gend=static_cast<hts_pos_t> (ref.size()),
+      .gpos= read_len - 1,
+      .tid=sam_hdr_name2tid(hdr, "chr1")
+    },
+    .ref_region=ref,
+    .read_len=read_len
+  };
+  // TODO validate_pileup_pars (ppars);
+
+  /* specifications for each set of reads I want to find
+     in the pileup
+  */
+  std::uniform_int_distribution<uint16_t> broad_ud (0, read_len);
+  assert (read_len > 2);
+  const uint16_t read_midpoint= (read_len / 2) - 1;
+  const auto wobble = static_cast<uint16_t> (ceil (read_len * 0.05));
+  std::uniform_int_distribution<uint16_t> clust_ud (
+    read_midpoint - wobble , read_midpoint + wobble
+  );
+  PileupReadSet set_a {
+    .event={BaseEvents::A},
+    .qpos_cb=[&broad_ud] (std::mt19937& rng) { return broad_ud(rng); }
+  };
+  PileupReadSet set_b {
+    .event={BaseEvents::T},
+    .qpos_cb=[&clust_ud] (std::mt19937& rng) { return clust_ud(rng); }
+  };
+  PileupReadSet set_ref {
+    .event={BaseEvents::ref},
+    .qpos_cb=[&broad_ud] (std::mt19937& rng) { return broad_ud(rng); }
+  };
+
+  /* generate */
+  // NOTE: returned reads are somewhat incomplete
+  const std::vector<std::pair<size_t, PileupReadSet>> evs
+  {
+    {nreads, set_a},
+    {nreads, set_b},
+    {nreads, set_ref}
+  };
+  const auto pileup = generate_pileup (ppars, evs, rng);
 
   PLOGD << "writing reads";
-  for (size_t i = 0; i < nread; ++i) {
+  const auto read_arr = pileup.b1arr.get();
+  for (size_t i = 0; i < pileup.nread; ++i) {
     const auto rc = sam_write1(hfp, hdr, read_arr + i);
     if (rc < 0) {
       PLOGF << std::format ("failed to write bam1_t, error code {}", rc);
