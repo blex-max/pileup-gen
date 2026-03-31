@@ -1,6 +1,39 @@
 #include "generate-pileup.hpp"
 #include "read-ops.hpp"
 #include "util.hpp"
+#include <htslib/hts.h>
+#include <htslib/sam.h>
+#include <string>
+
+
+size_t span
+(const PileupCoordinates& pc) {
+  return static_cast<size_t> (pc.gend - pc.gstart);
+}
+bool validate
+(const PileupCoordinates& pc)
+{
+  // half open 0-based coordinates
+  return (
+    pc.gstart <= 0
+    && pc.gstart < pc.gend
+    && pc.gpos >= pc.gstart
+    && pc.gpos < pc.gend
+    && pc.tid >= 0
+  );
+}
+
+bool validate
+(const PileupParams& pp)
+{
+  const auto& coord = pp.coord;
+  const auto ref_span = pp.ref_region.size();
+  return (
+    validate (coord)
+    && ref_span == span (coord)
+    && pp.read_len <= ref_span
+  );
+}
 
 // TODO/CRITICAL not cigar aware!
 // TODO/CRITICAL snp only
@@ -51,6 +84,7 @@ PileupData generate_pileup
     const auto read_len = pileup_pars.read_len;
 
     size_t mem_block_i = 0;
+    size_t set_idx = 0;  // name param would be better
     for (const auto& [nread_ev, set_spec] : sets) {
       const auto mem_block_end = nread_ev + mem_block_i;
 
@@ -68,26 +102,28 @@ PileupData generate_pileup
         */
 
         const auto qpos = set_spec.qpos_cb(rng);
-        const auto rstart = pileup_gpos - qpos;
+        const auto read_gstart = pileup_gpos - qpos;
 
         // materialised string not string_view
         // since we may then edit it in place.
         readops::ReadSpec rs{
           .qseq=std::string (genomic_substr (
             pileup_gstart,
-            rstart,
+            read_gstart,
             read_len,
             ref_seq
           )),
           .qqual=std::string (read_len, 37),
-          .qname={},
+          .qname="read" + std::to_string(i) + "-set" + std::to_string(set_idx),  // good candiate/example for callbacks needing
+                                              // a context obj of generation up to this point
+                                              // + params
           .qcig={{read_len, readops::cigarcode::match}},
-          .lmost_pos=rstart,
-          .mate_lmost_pos=0,
-          .flag=0,
+          .lmost_pos=read_gstart,
+          .mate_lmost_pos=-1,
+          .flag=BAM_FREAD1,
           .tid=pileup_tid,
-          .mate_tid=0,
-          .mapq=0
+          .mate_tid=-1,
+          .mapq=37  // well mapped
         };
 
         // apply perturbation as specified, or no op.
@@ -110,6 +146,7 @@ PileupData generate_pileup
       }
 
       mem_block_i = mem_block_end;  // move arena ptr
+      ++set_idx;
 
     }
 

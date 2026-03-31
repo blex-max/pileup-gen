@@ -46,6 +46,8 @@ struct PileupCoordinates {
   hts_pos_t gpos;
   int32_t tid;
 };
+size_t span (const PileupCoordinates& pc);
+bool validate (const PileupCoordinates& pc);
 
 
 // NOTE WIP
@@ -54,6 +56,7 @@ struct PileupParams {
   std::string_view ref_region;
   uint16_t read_len;            // must be <= (ref_region.size() / 2) - 1
 };
+bool validate (const PileupParams& pp);
 
 
 // output

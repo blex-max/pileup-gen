@@ -2,9 +2,9 @@
 
 #include <cstdint>
 #include <string>
+#include <vector>
 
 #include <htslib/sam.h>
-#include <vector>
 
 
 namespace readops {
@@ -29,7 +29,7 @@ struct ReadSpec {
   hts_pos_t mate_lmost_pos=0;
   uint16_t flag=0;
   int32_t tid=0;
-  int32_t mate_tid=0;
+  int32_t mate_tid=-1;
   uint8_t mapq=0;
   // TLEN/isize left out at least for now
   // as the field is problematic and nonstandard
@@ -54,12 +54,12 @@ inline int set_bam1 (const ReadSpec& rs, bam1_t* b) {
       rs.qname.size(),
       rs.qname.empty() ? NULL : rs.qname.c_str(),
       cig_nop > 0 ? rs.flag : rs.flag | BAM_FUNMAP ,
-      -1,
+      rs.tid,
       rs.lmost_pos,
       rs.mapq,
       cig_nop,
       cig_nop > 0 ? cig_arr : NULL,  // cigar set later
-      -1,
+      rs.mate_tid,
       rs.mate_lmost_pos,
       0,  // isize ignored for now
       rs.qseq.size(),
@@ -82,4 +82,4 @@ inline int set_bam1 (const ReadSpec& rs, bam1_t* b) {
 
 // void assign_qual (bam1_t* b, QualModel qual);
 
-}
+}  // end namespace

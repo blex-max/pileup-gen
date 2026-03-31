@@ -115,7 +115,9 @@ int main (int argc, char** argv)
     .ref_region=ref,
     .read_len=read_len
   };
-  // TODO validate_pileup_pars (ppars);
+  if (!validate (ppars)) {
+    throw std::runtime_error ("invalid pileup specification");
+  };
 
   /* specifications for each set of reads I want to find
      in the pileup
