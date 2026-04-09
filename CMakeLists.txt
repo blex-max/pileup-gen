@@ -1,6 +1,6 @@
 cmake_minimum_required (VERSION 3.22)
 
-project(pilegen
+project(htsgen
   LANGUAGES CXX
   VERSION 0.0.0
 )
@@ -9,9 +9,10 @@ set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
 
-option(ENABLE_DEBUG_FLAGS "Enable extra debug compile options" ON)
-option(MAKE_TEST "Compile and run tests binary" ON)
+option(ENABLE_DEBUG_FLAGS "Enable extra debug compile options" OFF)
+option(MAKE_TEST "Compile and run tests binary" OFF)
 
 # user paths to htslib if needed
 set(HTSLIB_INCLUDE_DIR "" CACHE PATH "Path to directory that contains htslib/hts.h")
@@ -20,16 +21,21 @@ set(HTSLIB_LIBRARY "" CACHE FILEPATH "Absolute path to libhts.{so,dylib,a}")
 # //--- find deps ---//
 find_package(PkgConfig QUIET)
 
-# //--- cxxopts ---//
 include(FetchContent)
-
-message(STATUS "Finding cxxopts")
+set(FETCHCONTENT_QUIET OFF)
 FetchContent_Declare(
-  cxxopts
-  GIT_REPOSITORY https://github.com/jarro2783/cxxopts.git
-  GIT_TAG        v3.3.1  # what I developed against, but any 3.x.x should be fine
+    plog
+    GIT_REPOSITORY https://github.com/SergiusTheBest/plog
+    GIT_TAG        1.1.10
+    GIT_SHALLOW    true
 )
-FetchContent_MakeAvailable(cxxopts)
+FetchContent_MakeAvailable(plog)
+FetchContent_Declare(
+    argparse
+    GIT_REPOSITORY https://github.com/p-ranav/argparse.git
+    GIT_TAG v3.2
+)
+FetchContent_MakeAvailable(argparse)
 
 # ------- htslib -------
 message(STATUS "Finding htslib")
@@ -83,20 +89,23 @@ if(MAKE_TEST)
 
   FetchContent_MakeAvailable(Catch2)
 
-  add_executable(test-pilegen tests/test.cpp)
-  target_include_directories(test-pilegen PRIVATE src)
-  target_link_libraries(test-pilegen PRIVATE
+  add_executable(test-htsgen
+    tests/test.cpp
+  )
+  target_include_directories(test-htsgen PRIVATE src)
+  target_link_libraries(test-htsgen PRIVATE
     Catch2::Catch2WithMain
     ${HTSLIB_TARGET}
   )
 endif(MAKE_TEST)
 # //--- end testing ---//
 
-add_executable(pilegen
+add_executable(htsgen
   src/main.cpp
+  src/generate-pileup.cpp
 )
 
-target_compile_options(pilegen PRIVATE
+target_compile_options(htsgen PRIVATE
     -Wall
     -Wextra
     -Wpedantic
@@ -113,19 +122,26 @@ target_compile_options(pilegen PRIVATE
 )
 
 if(ENABLE_DEBUG_FLAGS)
-  target_compile_options(pilegen PRIVATE
+  target_compile_options(htsgen PRIVATE
     -fsanitize=address,undefined
     -fno-omit-frame-pointer
     -O0 -g
   )
-  target_link_options(pilegen PRIVATE
+  target_link_options(htsgen PRIVATE
     -fsanitize=address,undefined
   )
 endif()
 
-target_include_directories(pilegen PRIVATE src)
+target_include_directories(
+  htsgen
+  PRIVATE
+  src
+)
 
-target_link_libraries(pilegen
-  cxxopts::cxxopts
+target_link_libraries(
+  htsgen
+  PRIVATE
   ${HTSLIB_TARGET}
+  argparse
+  plog::plog
 )
