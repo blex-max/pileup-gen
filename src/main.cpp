@@ -1,3 +1,5 @@
+#include <cstdlib>
+#include <fstream>
 #include <random>
 
 #include <plog/Log.h>
@@ -73,13 +75,27 @@
 int main (int argc, char** argv)
 {
   argparse::ArgumentParser cli ("htsgen", "0.0.0");
+
+  cli.add_argument("--ref-out")
+     .help ("provide a writeable filepath to output the reference slice used or generated in fasta format")
+     .nargs (1);
+
   try {
     cli.parse_args(argc, argv);
   }
   catch (const std::exception& err) {
     std::cerr << err.what() << std::endl;
     std::cerr << cli;
-    return 1;
+    return EXIT_FAILURE;
+  }
+
+  std::ofstream ref_ostream;
+  if (auto fp = cli.present("--ref-out")) {
+    ref_ostream = std::ofstream (fp->c_str());
+    if (ref_ostream.fail()) {
+      PLOGF << "failed to open output fasta for writing at " << *fp;
+      return EXIT_FAILURE;
+    }
   }
 
   plog::init<plog::TxtFormatter> (plog::debug, plog::streamStdErr);
@@ -96,15 +112,16 @@ int main (int argc, char** argv)
                    NULL);
   if (const auto rc = sam_hdr_write (hfp, hdr);
       rc < 0) {
-    std::cerr << "error writing hdr";
-    return 1;
+    PLOGF << "error writing hdr";
+    return EXIT_FAILURE;
   };
 
   /* setup pileup description */
   std::mt19937 rng;
   const uint16_t read_len = 50;
   const std::string ref (read_len + read_len, 'G');
-  const size_t nreads = 10;
+  const size_t nreads_alt = 20;
+  const size_t nreads_ref = 60;
   PileupParams ppars {
     .coord={
       .gstart=0,
@@ -116,7 +133,8 @@ int main (int argc, char** argv)
     .read_len=read_len
   };
   if (!validate (ppars)) {
-    throw std::runtime_error ("invalid pileup specification");
+    PLOGF << "invalid pileup specification";
+    return EXIT_FAILURE;
   };
 
   /* specifications for each set of reads I want to find
@@ -143,28 +161,35 @@ int main (int argc, char** argv)
   };
 
   /* generate */
-  // NOTE: returned reads are somewhat incomplete
   const std::vector<std::pair<size_t, PileupReadSet>> evs
   {
-    {nreads, set_a},
-    {nreads, set_b},
-    {nreads, set_ref}
+    {nreads_alt, set_a},
+    {nreads_alt, set_b},
+    {nreads_ref, set_ref}
   };
   const auto pileup = generate_pileup (ppars, evs, rng);
+  const auto read_arr = pileup.b1arr.get();
 
   PLOGD << "writing reads";
-  const auto read_arr = pileup.b1arr.get();
   for (size_t i = 0; i < pileup.nread; ++i) {
     const auto rc = sam_write1(hfp, hdr, read_arr + i);
     if (rc < 0) {
       PLOGF << std::format ("failed to write bam1_t, error code {}", rc);
-      return 1;
+      return EXIT_FAILURE;
     }
+  }
+
+  if (ref_ostream.is_open()) {
+    PLOGD << "writing reference";
+    ref_ostream << ">chr1\n";  // TODO/BUG fragile, must match read SN
+    ref_ostream << ppars.ref_region << "\n";
+    ref_ostream.flush();
+    ref_ostream.close();
   }
 
   hts_flush(hfp);
   hts_close(hfp);
   sam_hdr_destroy(hdr);
 
-  return 0;
+  return EXIT_SUCCESS;
 }
