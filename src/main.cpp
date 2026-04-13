@@ -106,8 +106,9 @@ int main (int argc, char** argv)
   // to file without having set SQ lines
   // is a segfault if any RNAME
   // is set in the bam1_t
+  const std::string tid ("chr1");
   sam_hdr_add_line (hdr, "SQ",
-                   "SN", "chr1",
+                   "SN", tid.c_str(),
                    "LN", "248956422",
                    NULL);
   if (const auto rc = sam_hdr_write (hfp, hdr);
@@ -127,7 +128,7 @@ int main (int argc, char** argv)
       .gstart=0,
       .gend=static_cast<hts_pos_t> (ref.size()),
       .gpos= read_len - 1,
-      .tid=sam_hdr_name2tid(hdr, "chr1")
+      .tid=sam_hdr_name2tid(hdr, tid.c_str())
     },
     .ref_region=ref,
     .read_len=read_len
@@ -140,7 +141,7 @@ int main (int argc, char** argv)
   /* specifications for each set of reads I want to find
      in the pileup
   */
-  std::uniform_int_distribution<uint16_t> broad_ud (0, read_len);
+  std::uniform_int_distribution<uint16_t> broad_ud (0, read_len - 1);
   assert (read_len > 2);
   const uint16_t read_midpoint= (read_len / 2) - 1;
   const auto wobble = static_cast<uint16_t> (ceil (read_len * 0.05));
@@ -181,7 +182,7 @@ int main (int argc, char** argv)
 
   if (ref_ostream.is_open()) {
     PLOGD << "writing reference";
-    ref_ostream << ">chr1\n";  // TODO/BUG fragile, must match read SN
+    ref_ostream << ">" << tid << "\n";
     ref_ostream << ppars.ref_region << "\n";
     ref_ostream.flush();
     ref_ostream.close();

@@ -1,4 +1,5 @@
 #include "generate-pileup.hpp"
+#include "plog/Log.h"
 #include "read-ops.hpp"
 #include "util.hpp"
 #include <htslib/hts.h>
@@ -128,6 +129,8 @@ PileupData generate_pileup
 
         // apply perturbation as specified, or no op.
         apply_event (set_spec.event, rs, pileup_gpos);
+
+        // PLOGD << rs;
 
         readops::set_bam1 (rs, &b1);
 

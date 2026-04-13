@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <format>
 #include <string>
 #include <vector>
 
@@ -36,6 +37,17 @@ struct ReadSpec {
   // (per discussion with sam team).
   // aux left out for now, due further consideration
 };
+
+inline std::ostream& operator<< (std::ostream& os, const ReadSpec& rs) {
+  os <<
+    std::format
+      ("qname={}\nqseq={}\nqqual={}\nqcig={}\n"
+       "flag={}\ntid={}\nstart={}\nmapq={}\nmate_tid={}\nmate_start={}",
+       rs.qname, rs.qseq, "STRINGIFY-NOT-IMPLEMETED", "STRINGIFY-NOT-IMPLEMENTED",
+       rs.flag, rs.tid, rs.lmost_pos, rs.mapq, rs.mate_tid, rs.mate_lmost_pos
+       );
+  return os;
+}
 
 // wrapper for bam_set1
 inline int set_bam1 (const ReadSpec& rs, bam1_t* b) {
