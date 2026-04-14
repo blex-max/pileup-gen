@@ -1,6 +1,7 @@
 #include <cstdlib>
 #include <fstream>
 #include <random>
+#include <filesystem>
 
 #include <plog/Log.h>
 #include <plog/Initializers/ConsoleInitializer.h>
@@ -71,14 +72,20 @@
   by composing functions and helpers.
 */
 
+namespace fs = std::filesystem;
+
 
 int main (int argc, char** argv)
 {
+  plog::init<plog::TxtFormatter> (plog::debug, plog::streamStdErr);
   argparse::ArgumentParser cli ("htsgen", "0.0.0");
 
-  cli.add_argument("--ref-out")
-     .help ("provide a writeable filepath to output the reference slice used or generated in fasta format")
-     .nargs (1);
+  cli.add_argument ("outdir")
+    .help ("writeable directory in which to output results")
+    .nargs (1);
+  cli.add_argument ("--prefix")
+    .help ("filename prefix to add to all outputs")
+    .nargs (1);
 
   try {
     cli.parse_args(argc, argv);
@@ -89,18 +96,29 @@ int main (int argc, char** argv)
     return EXIT_FAILURE;
   }
 
-  std::ofstream ref_ostream;
-  if (auto fp = cli.present("--ref-out")) {
-    ref_ostream = std::ofstream (fp->c_str());
-    if (ref_ostream.fail()) {
-      PLOGF << "failed to open output fasta for writing at " << *fp;
-      return EXIT_FAILURE;
-    }
+  const auto fprefix = cli.get<std::string> ("--prefix");
+
+  fs::path outdir = cli.get<std::string> ("outdir");
+  if (fs::exists (outdir) && !fs::is_directory (outdir)) {
+    std::cerr << "outdir exists and is not a directory" << std::endl;
+    return EXIT_FAILURE;
   }
 
-  plog::init<plog::TxtFormatter> (plog::debug, plog::streamStdErr);
+  fs::create_directory (outdir);  // no-op if exists
+  if ((fs::status (outdir).permissions() & fs::perms::owner_write) == fs::perms::none) {
+    std::cerr << "outdir not writeable" << std::endl;
+    return EXIT_FAILURE;
+  }
 
-  auto hfp = hts_open ("-", "w");
+  fs::path ref_out = outdir / (fprefix + "pileup-ref.fa");
+  std::ofstream ref_ostream (ref_out);
+  if (ref_ostream.fail()) {
+    std::cerr << "failed to open output fasta for writing at " << ref_out;
+    return EXIT_FAILURE;
+  }
+
+  fs::path sam_out = outdir / (fprefix + "pileup.sam");
+  auto sam_handle = hts_open (sam_out.c_str(), "w");
   auto hdr = sam_hdr_init ();
   // NOTE attempting to write a bam1_t
   // to file without having set SQ lines
@@ -111,7 +129,7 @@ int main (int argc, char** argv)
                    "SN", tid.c_str(),
                    "LN", "248956422",
                    NULL);
-  if (const auto rc = sam_hdr_write (hfp, hdr);
+  if (const auto rc = sam_hdr_write (sam_handle, hdr);
       rc < 0) {
     PLOGF << "error writing hdr";
     return EXIT_FAILURE;
@@ -141,6 +159,7 @@ int main (int argc, char** argv)
   /* specifications for each set of reads I want to find
      in the pileup
   */
+  // TODO output metadata
   std::uniform_int_distribution<uint16_t> broad_ud (0, read_len - 1);
   assert (read_len > 2);
   const uint16_t read_midpoint= (read_len / 2) - 1;
@@ -152,10 +171,10 @@ int main (int argc, char** argv)
     .event={BaseEvents::A},
     .qpos_cb=[&broad_ud] (std::mt19937& rng) { return broad_ud(rng); }
   };
-  PileupReadSet set_b {
-    .event={BaseEvents::T},
-    .qpos_cb=[&clust_ud] (std::mt19937& rng) { return clust_ud(rng); }
-  };
+  // PileupReadSet set_b {
+  //   .event={BaseEvents::T},
+  //   .qpos_cb=[&clust_ud] (std::mt19937& rng) { return clust_ud(rng); }
+  // };
   PileupReadSet set_ref {
     .event={BaseEvents::ref},
     .qpos_cb=[&broad_ud] (std::mt19937& rng) { return broad_ud(rng); }
@@ -165,7 +184,7 @@ int main (int argc, char** argv)
   const std::vector<std::pair<size_t, PileupReadSet>> evs
   {
     {nreads_alt, set_a},
-    {nreads_alt, set_b},
+    // {nreads_alt, set_b},
     {nreads_ref, set_ref}
   };
   const auto pileup = generate_pileup (ppars, evs, rng);
@@ -173,7 +192,7 @@ int main (int argc, char** argv)
 
   PLOGD << "writing reads";
   for (size_t i = 0; i < pileup.nread; ++i) {
-    const auto rc = sam_write1(hfp, hdr, read_arr + i);
+    const auto rc = sam_write1(sam_handle, hdr, read_arr + i);
     if (rc < 0) {
       PLOGF << std::format ("failed to write bam1_t, error code {}", rc);
       return EXIT_FAILURE;
@@ -188,8 +207,8 @@ int main (int argc, char** argv)
     ref_ostream.close();
   }
 
-  hts_flush(hfp);
-  hts_close(hfp);
+  hts_flush(sam_handle);
+  hts_close(sam_handle);
   sam_hdr_destroy(hdr);
 
   return EXIT_SUCCESS;

@@ -23,6 +23,7 @@ find_package(PkgConfig QUIET)
 
 include(FetchContent)
 set(FETCHCONTENT_QUIET OFF)
+
 FetchContent_Declare(
     plog
     GIT_REPOSITORY https://github.com/SergiusTheBest/plog
@@ -30,12 +31,21 @@ FetchContent_Declare(
     GIT_SHALLOW    true
 )
 FetchContent_MakeAvailable(plog)
+
 FetchContent_Declare(
     argparse
     GIT_REPOSITORY https://github.com/p-ranav/argparse.git
     GIT_TAG v3.2
 )
 FetchContent_MakeAvailable(argparse)
+
+set(PYBIND11_FINDPYTHON NEW)
+FetchContent_Declare(
+  pybind11
+  GIT_REPOSITORY https://github.com/pybind/pybind11
+  GIT_TAG v3.0.3
+)
+FetchContent_MakeAvailable(pybind11)
 
 # ------- htslib -------
 message(STATUS "Finding htslib")
@@ -100,12 +110,9 @@ if(MAKE_TEST)
 endif(MAKE_TEST)
 # //--- end testing ---//
 
-add_executable(htsgen
-  src/main.cpp
-  src/generate-pileup.cpp
-)
-
-target_compile_options(htsgen PRIVATE
+# compilation flags
+add_library(common_compile_opts INTERFACE)
+target_compile_options(common_compile_opts INTERFACE
     -Wall
     -Wextra
     -Wpedantic
@@ -122,26 +129,52 @@ target_compile_options(htsgen PRIVATE
 )
 
 if(ENABLE_DEBUG_FLAGS)
-  target_compile_options(htsgen PRIVATE
+  target_compile_options(common_compile_opts INTERFACE
     -fsanitize=address,undefined
     -fno-omit-frame-pointer
     -O0 -g
   )
-  target_link_options(htsgen PRIVATE
+  target_link_options(common_compile_opts INTERFACE
     -fsanitize=address,undefined
   )
 endif()
 
-target_include_directories(
-  htsgen
-  PRIVATE
+
+add_library(htsgen-core STATIC
+  src/generate-pileup.cpp
+)
+target_include_directories(htsgen-core PUBLIC
   src
 )
-
-target_link_libraries(
-  htsgen
-  PRIVATE
+target_link_libraries(htsgen-core PUBLIC
   ${HTSLIB_TARGET}
+)
+target_link_libraries(htsgen-core PRIVATE
+  plog::plog
+)
+
+
+add_executable(htsgen
+  src/main.cpp
+)
+target_link_libraries(htsgen PRIVATE
+  common_compile_opts
+  htsgen-core
   argparse
   plog::plog
 )
+
+
+# link bindings
+pybind11_add_module(pyhtsgen
+  python/bindings.cpp
+)
+target_link_libraries(pyhtsgen PRIVATE
+  common_compile_opts
+  htsgen-core
+)
+set_target_properties(pyhtsgen PROPERTIES
+  OUTPUT_NAME htsgen
+)
+
+

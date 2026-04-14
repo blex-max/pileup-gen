@@ -71,6 +71,8 @@ PileupData generate_pileup
       nsum_reads += nset_reads;
     }
 
+    PLOGD << std::format ("requested generation of {} total reads", nsum_reads);
+
     // mem arenas
     PileupData out {
       .b1arr = std::unique_ptr<bam1_t[]> (new bam1_t[nsum_reads]{}),
