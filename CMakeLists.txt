@@ -178,6 +178,7 @@ if(MAKE_PY)
   set_target_properties(pyhtsgen PROPERTIES
     OUTPUT_NAME htsgen
   )
+  # for pip install
   install(TARGETS pyhtsgen
     LIBRARY DESTINATION .
   )

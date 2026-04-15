@@ -16,3 +16,8 @@ wheel.packages = []
 MAKE_PY = "ON"
 MAKE_EXE = "OFF"
 MAKE_TEST = "OFF"
+
+# if htslib cannot be found automatically,
+# the user may pass the include directory
+# and library path to the cmake at the
+# pip install call.
