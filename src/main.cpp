@@ -148,8 +148,8 @@ int main (int argc, char** argv)
       .gpos= read_len - 1,
       .tid=sam_hdr_name2tid(hdr, tid.c_str())
     },
-    .ref_region=ref,
-    .read_len=read_len
+    .refseq=ref,
+    .readlen=read_len
   };
   if (!validate (ppars)) {
     PLOGF << "invalid pileup specification";
@@ -169,15 +169,15 @@ int main (int argc, char** argv)
   );
   PileupReadSet set_a {
     .event={BaseEvents::A},
-    .qpos_cb=[&broad_ud] (std::mt19937& rng) { return broad_ud(rng); }
+    .qpos_cb=[&broad_ud, &rng] () { return broad_ud(rng); }
   };
   // PileupReadSet set_b {
   //   .event={BaseEvents::T},
-  //   .qpos_cb=[&clust_ud] (std::mt19937& rng) { return clust_ud(rng); }
+  //   .qpos_cb=[&clust_ud, &rng] () { return clust_ud(rng); }
   // };
   PileupReadSet set_ref {
     .event={BaseEvents::ref},
-    .qpos_cb=[&broad_ud] (std::mt19937& rng) { return broad_ud(rng); }
+    .qpos_cb=[&broad_ud, &rng] () { return broad_ud(rng); }
   };
 
   /* generate */
@@ -202,7 +202,7 @@ int main (int argc, char** argv)
   if (ref_ostream.is_open()) {
     PLOGD << "writing reference";
     ref_ostream << ">" << tid << "\n";
-    ref_ostream << ppars.ref_region << "\n";
+    ref_ostream << ppars.refseq << "\n";
     ref_ostream.flush();
     ref_ostream.close();
   }

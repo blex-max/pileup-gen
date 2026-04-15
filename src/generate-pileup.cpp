@@ -28,11 +28,11 @@ bool validate
 (const PileupParams& pp)
 {
   const auto& coord = pp.coord;
-  const auto ref_span = pp.ref_region.size();
+  const auto ref_span = pp.refseq.size();
   return (
     validate (coord)
     && ref_span == span (coord)
-    && pp.read_len <= ref_span
+    && pp.readlen <= ref_span
   );
 }
 
@@ -64,7 +64,7 @@ void apply_event
 // requiste for the result to properly represent the desired pileup
 // explicit specification
 PileupData generate_pileup
-(const PileupParams& pileup_pars, std::span<const std::pair<size_t, PileupReadSet>> sets, std::mt19937& rng)
+(const PileupParams& pileup_pars, std::span<const std::pair<size_t, PileupReadSet>> sets)
 {
     size_t nsum_reads = 0;
     for (const auto& [nset_reads, _] : sets) {
@@ -80,11 +80,11 @@ PileupData generate_pileup
       .nread = nsum_reads
     };
 
-    const auto ref_seq = pileup_pars.ref_region;
+    const auto ref_seq = pileup_pars.refseq;
     const auto pileup_gstart = pileup_pars.coord.gstart;
     const auto pileup_gpos = pileup_pars.coord.gpos;
     const auto pileup_tid = pileup_pars.coord.tid;
-    const auto read_len = pileup_pars.read_len;
+    const auto read_len = pileup_pars.readlen;
 
     size_t mem_block_i = 0;
     size_t set_idx = 0;  // name param would be better
@@ -104,7 +104,7 @@ PileupData generate_pileup
           NOTE: can apply sequencing model at creation
         */
 
-        const auto qpos = set_spec.qpos_cb(rng);
+        const auto qpos = set_spec.qpos_cb();
         const auto read_gstart = pileup_gpos - qpos;
 
         // materialised string not string_view

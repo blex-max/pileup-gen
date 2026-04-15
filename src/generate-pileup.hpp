@@ -53,8 +53,8 @@ bool validate (const PileupCoordinates& pc);
 // NOTE WIP
 struct PileupParams {
   PileupCoordinates coord;
-  std::string_view ref_region;
-  uint16_t read_len;            // must be <= (ref_region.size() / 2) - 1
+  std::string_view refseq;
+  uint16_t readlen;            // must be <= (ref_region.size() / 2) - 1
 };
 bool validate (const PileupParams& pp);
 
@@ -75,7 +75,7 @@ struct PileupData {
 // reads of that set.
 struct PileupReadSet {
   EventSpec event;
-  std::function<uint16_t(std::mt19937&)> qpos_cb;  // callback generating a
+  std::function<uint16_t()> qpos_cb;  // callback generating a
                                                    // query position from a distribution
                                                    // (or otherwise).
   // further properties TODO
