@@ -179,9 +179,39 @@ if(MAKE_PY)
   set_target_properties(pyhtsgen PROPERTIES
     OUTPUT_NAME htsgen
   )
+  # janky, to revist
+  find_program(PYBIND11_STUBGEN_EXECUTABLE pybind11-stubgen)
+  if(PYBIND11_STUBGEN_EXECUTABLE)
+    set(_stubgen_script "${CMAKE_CURRENT_BINARY_DIR}/run_stubgen.cmake")
+    file(GENERATE
+      OUTPUT "${_stubgen_script}"
+      CONTENT
+"set(ENV{PYTHONPATH} \"$<TARGET_FILE_DIR:pyhtsgen>:$ENV{PYTHONPATH}\")
+execute_process(
+  COMMAND \"${PYBIND11_STUBGEN_EXECUTABLE}\" htsgen
+    --output-dir \"${CMAKE_CURRENT_BINARY_DIR}/stubs\"
+  RESULT_VARIABLE result
+)
+if(NOT result EQUAL 0)
+  message(STATUS \"pybind11-stubgen failed (exit \${result}) -- htsgen.pyi will not be installed\")
+endif()
+"
+    )
+    add_custom_command(TARGET pyhtsgen POST_BUILD
+      COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_CURRENT_BINARY_DIR}/stubs"
+      COMMAND ${CMAKE_COMMAND} -P "${_stubgen_script}"
+      COMMENT "Generating Python stubs for htsgen"
+    )
+  else()
+    message(STATUS "pybind11-stubgen not found, skipping stub generation")
+  endif()
   # for pip install
   install(TARGETS pyhtsgen
     LIBRARY DESTINATION .
+  )
+  install(FILES ${CMAKE_CURRENT_BINARY_DIR}/stubs/htsgen.pyi
+    DESTINATION .
+    OPTIONAL
   )
 endif()
 
