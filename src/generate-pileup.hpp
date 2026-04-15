@@ -58,16 +58,6 @@ struct PileupParams {
 bool validate (const PileupParams& pp);
 
 
-// output
-struct PileupData {
-  // NOTE: destruction will be in reverse order.
-  // NOTE: make_unique default-initalises, prefer new T[n]{}
-  std::unique_ptr<bam1_t[]> b1arr;
-  std::unique_ptr<bam_pileup1_t[]> p1arr;
-  size_t nread;  // must be set
-};
-
-
 // Manifest describing a set
 // of reads found in the total
 // pileup. Used to materialise
@@ -87,6 +77,14 @@ void apply_event
 (const EventSpec& event, readops::ReadSpec& read, hts_pos_t event_gpos);
 
 
+// output
+struct PileupData {
+  // NOTE: destruction will be in reverse order.
+  // NOTE: make_unique default-initalises, prefer new T[n]{}
+  std::unique_ptr<bam1_t[]> b1arr;
+  std::unique_ptr<bam_pileup1_t[]> p1arr;
+  size_t nread;  // must be set
+};
 PileupData generate_pileup
 (const PileupParams& pileup_pars, std::span<const std::pair<size_t, PileupReadSet>> sets);
 
