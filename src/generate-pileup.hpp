@@ -4,7 +4,6 @@
 #include <cstddef>
 #include <functional>
 #include <memory>
-#include <random>
 #include <span>
 
 #include <htslib/hts.h>
@@ -89,6 +88,6 @@ void apply_event
 
 
 PileupData generate_pileup
-(const PileupParams& pileup_pars, std::span<const std::pair<size_t, PileupReadSet>> sets, std::mt19937& rng);
+(const PileupParams& pileup_pars, std::span<const std::pair<size_t, PileupReadSet>> sets);
 
 

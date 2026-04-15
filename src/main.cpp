@@ -187,7 +187,7 @@ int main (int argc, char** argv)
     // {nreads_alt, set_b},
     {nreads_ref, set_ref}
   };
-  const auto pileup = generate_pileup (ppars, evs, rng);
+  const auto pileup = generate_pileup (ppars, evs);
   const auto read_arr = pileup.b1arr.get();
 
   PLOGD << "writing reads";

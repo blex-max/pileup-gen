@@ -8,7 +8,8 @@ namespace py = pybind11;
 // mod_gil_not_used() is omitted intentionally
 // despite being the suggested default in the pybind11 docs.
 // PileupReadSet::qpos_cb calls back into Python
-// - callbacks into python require the GIL to be held.
+// - my understanding is that callbacks into python
+// require the GIL to be held.
 PYBIND11_MODULE (htsgen, m) {
   m.doc() = "Python bindings for htsgen, a synthetic data generation library for high-throughput sequencing";
 
@@ -19,8 +20,7 @@ PYBIND11_MODULE (htsgen, m) {
     .value("G", BaseEvents::G)
     .value("T", BaseEvents::T)
     .value("N", BaseEvents::N)
-    .value("deleted", BaseEvents::del)
-    .export_values();
+    .value("deleted", BaseEvents::del);
 
   py::class_<EventSpec> (m, "EventSpec")
     .def (
@@ -61,5 +61,7 @@ PYBIND11_MODULE (htsgen, m) {
     .def_readwrite("coordinates", &PileupParams::coord)
     .def_readwrite("refseq", &PileupParams::refseq)
     .def_readwrite("readlen", &PileupParams::readlen);
+
+  m.def("generate_pileup", &generate_pileup, "generate a synthetic pileup containing sets of reads");
 
 }
