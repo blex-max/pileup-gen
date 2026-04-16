@@ -113,6 +113,7 @@ PileupData generate_pileup
 
         // materialised string not string_view
         // since we may then edit it in place.
+        // NOTE: many placeholders
         readops::ReadSpec rs{
           .qseq=std::string (genomic_substr (
             pileup_gstart,
@@ -126,10 +127,10 @@ PileupData generate_pileup
                                               // + params
           .qcig={{read_len, readops::cigarcode::match}},
           .lmost_pos=read_gstart,
-          .mate_lmost_pos=-1,
+          .mate_lmost_pos=read_gstart + 1,
           .flag=BAM_FREAD1,
           .tid=pileup_tid,
-          .mate_tid=-1,
+          .mate_tid=pileup_tid,
           .mapq=37,  // well mapped
           // .aux={{"MC", 'Z', }}
         };
