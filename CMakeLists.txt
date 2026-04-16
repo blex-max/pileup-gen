@@ -129,6 +129,7 @@ endif()
 add_library(htsgen-core STATIC
   src/generate-pileup.cpp
   src/accessors.cpp
+  src/read-ops.cpp
 )
 target_include_directories(htsgen-core PUBLIC
   src

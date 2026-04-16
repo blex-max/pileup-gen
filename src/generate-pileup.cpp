@@ -1,10 +1,14 @@
 #include "generate-pileup.hpp"
-#include "plog/Log.h"
-#include "read-ops.hpp"
-#include "util.hpp"
+
+#include <format>
 #include <htslib/hts.h>
 #include <htslib/sam.h>
 #include <string>
+
+#include "plog/Log.h"
+
+#include "read-ops.hpp"
+#include "util.hpp"
 
 
 size_t span
@@ -64,7 +68,7 @@ void apply_event
 // requiste for the result to properly represent the desired pileup
 // explicit specification
 PileupData generate_pileup
-(const PileupParams& pileup_pars, std::span<const std::pair<size_t, PileupReadSet>> sets)
+(const PileupParams& pileup_pars, std::span<const std::pair<size_t, PileupReadSet>> sets, PileupReadSet shared)
 {
     size_t nsum_reads = 0;
     for (const auto& [nset_reads, _] : sets) {
@@ -75,8 +79,8 @@ PileupData generate_pileup
 
     // mem arenas
     PileupData out {
-      .b1arr = std::unique_ptr<bam1_t[]> (new bam1_t[nsum_reads]{}),
-      .p1arr = std::unique_ptr<bam_pileup1_t[]> (new bam_pileup1_t[nsum_reads]{}),
+      .b1arr = Bam1Array (new bam1_t[nsum_reads]{}, Bam1ArrayDeleter{nsum_reads}),
+      .p1arr = Pileup1Array (new bam_pileup1_t[nsum_reads]{}),
       .nread = nsum_reads
     };
 
@@ -126,7 +130,8 @@ PileupData generate_pileup
           .flag=BAM_FREAD1,
           .tid=pileup_tid,
           .mate_tid=-1,
-          .mapq=37  // well mapped
+          .mapq=37,  // well mapped
+          // .aux={{"MC", 'Z', }}
         };
 
         // apply perturbation as specified, or no op.

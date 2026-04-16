@@ -65,8 +65,8 @@ bool validate (const PileupParams& pp);
 struct PileupReadSet {
   EventSpec event;
   std::function<uint16_t()> qpos_cb;  // callback generating a
-                                                   // query position from a distribution
-                                                   // (or otherwise).
+                                      // query position from a distribution
+                                      // (or otherwise).
   // further properties TODO
 };
 
@@ -77,15 +77,29 @@ void apply_event
 (const EventSpec& event, readops::ReadSpec& read, hts_pos_t event_gpos);
 
 
-// output
+// generation output
+// functor for freeing mem
+struct Bam1ArrayDeleter {
+  size_t n;
+  void operator()(bam1_t* arr) const {
+    for (size_t i = 0; i < n; ++i) {
+      auto b = arr[i];
+      b.mempolicy = BAM_USER_OWNS_STRUCT;  // don't free structs
+      bam_destroy1 (&b);
+    }
+    delete[] arr;  // free structs
+  }
+};
+using Bam1Array = std::unique_ptr<bam1_t[], Bam1ArrayDeleter>;
+using Pileup1Array = std::unique_ptr<bam_pileup1_t[]>;  // does not require custom deleter
 struct PileupData {
   // NOTE: destruction will be in reverse order.
   // NOTE: make_unique default-initalises, prefer new T[n]{}
-  std::unique_ptr<bam1_t[]> b1arr;
-  std::unique_ptr<bam_pileup1_t[]> p1arr;
+  Bam1Array b1arr;
+  Pileup1Array p1arr;
   size_t nread;  // must be set
 };
 PileupData generate_pileup
-(const PileupParams& pileup_pars, std::span<const std::pair<size_t, PileupReadSet>> sets);
+(const PileupParams& pileup_pars, std::span<const std::pair<size_t, PileupReadSet>> sets, PileupReadSet shared);
 
 

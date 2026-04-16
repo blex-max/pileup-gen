@@ -1,8 +1,9 @@
 #pragma once
 
 #include <cstdint>
-#include <format>
+#include <map>
 #include <string>
+#include <variant>
 #include <vector>
 
 #include <htslib/sam.h>
@@ -21,6 +22,13 @@ enum cigarcode : int {
 };
 
 using CigV = std::vector<std::pair<size_t, cigarcode>>;
+
+using AuxTag = const char[3];
+using AuxData = std::variant<int64_t, float, std::string>;
+int append_aux (bam1_t* b, AuxTag name, AuxData data);
+// using AuxArrayData... todo
+
+
 struct ReadSpec {
   std::string qseq{};   // emtpy == NULL
   std::string qqual{};  // empty == NULL
@@ -35,55 +43,14 @@ struct ReadSpec {
   // TLEN/isize left out at least for now
   // as the field is problematic and nonstandard
   // (per discussion with sam team).
-  // aux left out for now, due further consideration
+  std::map<AuxTag, AuxData> aux;
+  // auxarray...
 };
+std::ostream& operator<< (std::ostream& os, const ReadSpec& rs);  // serialise
 
-inline std::ostream& operator<< (std::ostream& os, const ReadSpec& rs) {
-  os <<
-    std::format
-      ("qname={}\nqseq={}\nqqual={}\nqcig={}\n"
-       "flag={}\ntid={}\nstart={}\nmapq={}\nmate_tid={}\nmate_start={}",
-       rs.qname, rs.qseq, "STRINGIFY-NOT-IMPLEMETED", "STRINGIFY-NOT-IMPLEMENTED",
-       rs.flag, rs.tid, rs.lmost_pos, rs.mapq, rs.mate_tid, rs.mate_lmost_pos
-       );
-  return os;
-}
 
 // wrapper for bam_set1
-inline int set_bam1 (const ReadSpec& rs, bam1_t* b) {
-
-  size_t cig_nop = rs.qcig.size();
-  uint32_t* cig_arr = static_cast<uint32_t*> (new uint32_t[cig_nop]);
-  if (cig_nop > 0) {
-    for (size_t opi = 0; opi < cig_nop; ++opi) {
-      const auto op = rs.qcig[opi];
-      cig_arr[opi] = bam_cigar_gen (op.first, op.second);
-    }
-  }
-
-  const auto rc = bam_set1 (
-      b,
-      rs.qname.size(),
-      rs.qname.empty() ? NULL : rs.qname.c_str(),
-      cig_nop > 0 ? rs.flag : rs.flag | BAM_FUNMAP ,
-      rs.tid,
-      rs.lmost_pos,
-      rs.mapq,
-      cig_nop,
-      cig_nop > 0 ? cig_arr : NULL,  // cigar set later
-      rs.mate_tid,
-      rs.mate_lmost_pos,
-      0,  // isize ignored for now
-      rs.qseq.size(),
-      rs.qseq.empty() ? NULL : rs.qseq.c_str(),
-      rs.qqual.empty() ? NULL : rs.qqual.c_str(),
-      0  // TODO, perhaps
-  );
-
-  delete cig_arr;
-
-  return rc;
-};
+int set_bam1 (const ReadSpec& rs, bam1_t* b);
 
 
 // of undetermined utility
