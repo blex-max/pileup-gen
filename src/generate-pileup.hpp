@@ -64,10 +64,12 @@ bool validate (const PileupParams& pp);
 // reads of that set.
 struct PileupReadSet {
   EventSpec event;
+  // how would these introspect the existing context when used via bindings
   std::function<uint16_t()> qpos_cb;  // callback generating a
                                       // query position from a distribution
                                       // (or otherwise).
   // further properties TODO
+  // std::function<std::map<readops::AuxTag, readops::AuxData>()> tag_cb;
 };
 
 
@@ -100,6 +102,8 @@ struct PileupData {
   size_t nread;  // must be set
 };
 PileupData generate_pileup
-(const PileupParams& pileup_pars, std::span<const std::pair<size_t, PileupReadSet>> sets, PileupReadSet shared);
+(const PileupParams& pileup_pars,
+ std::span<const std::pair<size_t, PileupReadSet>> sets,
+ PileupReadSet& shared);
 
 

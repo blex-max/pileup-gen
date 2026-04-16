@@ -68,7 +68,7 @@ void apply_event
 // requiste for the result to properly represent the desired pileup
 // explicit specification
 PileupData generate_pileup
-(const PileupParams& pileup_pars, std::span<const std::pair<size_t, PileupReadSet>> sets, PileupReadSet shared)
+(const PileupParams& pileup_pars, std::span<const std::pair<size_t, PileupReadSet>> sets, PileupReadSet& shared)
 {
     size_t nsum_reads = 0;
     for (const auto& [nset_reads, _] : sets) {
@@ -140,6 +140,10 @@ PileupData generate_pileup
         // PLOGD << rs;
 
         readops::set_bam1 (rs, &b1);
+
+        // BUG placeholder hack
+        readops::append_aux (&b1, "MC", std::format("{}M", read_len));
+        readops::append_aux (&b1, "AS", 100);
 
         p1 = {
           .b = &b1,

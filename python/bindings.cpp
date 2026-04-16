@@ -3,6 +3,7 @@
 #include <pybind11/stl.h>
 
 #include "generate-pileup.hpp"
+#include "pileup-ops.hpp"
 #include "accessors.hpp"
 
 namespace py = pybind11;
@@ -89,9 +90,20 @@ PYBIND11_MODULE (htsgen, m) {
     }, py::keep_alive<0, 1>());
 
   m.def("generate_pileup",
-    [](const PileupParams& pars, std::vector<std::pair<size_t, PileupReadSet>> sets) {
-      return generate_pileup(pars, sets);
+    // does the vector here need to be copied?
+    [](const PileupParams& pars, std::vector<std::pair<size_t, PileupReadSet>> sets, PileupReadSet& shared) {
+      return generate_pileup(pars, sets, shared);
     },
+    // using the default argument is unsafe and a BUG, but currently fine since not implemented
+    py::arg("params"), py::arg("set_specs"), py::arg("shared_spec")=PileupReadSet{},
     "generate a synthetic pileup containing sets of reads");
+
+  m.def("write_pileup",
+    [](const PileupData& p, std::string fp) {
+      return pileops::write_pileup(p, fp);
+    },
+    py::arg("pileup"), py::arg("fp"),
+    "write a PileupData object to disk in SAM format"
+  );
 
 }

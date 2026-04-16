@@ -2,6 +2,8 @@
 
 #include <cstdint>
 #include <format>
+#include <ostream>
+#include <ios>
 
 #include <htslib/sam.h>
 
@@ -10,13 +12,13 @@ namespace readops {
 
 // ReadSpec
 std::ostream& operator<< (std::ostream& os, const ReadSpec& rs) {
-  os <<
-    std::format
-      ("qname={}\nqseq={}\nqqual={}\nqcig={}\n"
-       "flag={}\ntid={}\nstart={}\nmapq={}\nmate_tid={}\nmate_start={}",
-       rs.qname, rs.qseq, "STRINGIFY-NOT-IMPLEMETED", "STRINGIFY-NOT-IMPLEMENTED",
-       rs.flag, rs.tid, rs.lmost_pos, rs.mapq, rs.mate_tid, rs.mate_lmost_pos
-       );
+  const auto s = std::format(
+    "qname={}\nqseq={}\nqqual={}\nqcig={}\n"
+    "flag={}\ntid={}\nstart={}\nmapq={}\nmate_tid={}\nmate_start={}",
+    rs.qname, rs.qseq, "STRINGIFY-NOT-IMPLEMETED", "STRINGIFY-NOT-IMPLEMENTED",
+    rs.flag, rs.tid, rs.lmost_pos, rs.mapq, rs.mate_tid, rs.mate_lmost_pos
+  );
+  os.write(s.data(), static_cast<std::streamsize>(s.size()));
   return os;
 }
 
@@ -24,19 +26,19 @@ std::ostream& operator<< (std::ostream& os, const ReadSpec& rs) {
 // functor helper for std::visit
 template<class... Ts>
 struct overloads : Ts... { using Ts::operator()...; };
-
 int append_aux
 (bam1_t* b, AuxTag name, AuxData data)
 {
+  if (name.size() != 2) return -1;
   const auto vistor = overloads {
     [b, name] (std::string s) {
-      return bam_aux_update_str (b, name, -1, s.c_str());
+      return bam_aux_update_str (b, name.c_str(), -1, s.c_str());
     },
     [b, name] (int64_t i) {
-      return bam_aux_update_int (b, name, i);
+      return bam_aux_update_int (b, name.c_str(), i);
     },
     [b, name] (float f) {
-      return bam_aux_update_float (b, name, f);
+      return bam_aux_update_float (b, name.c_str(), f);
     }
   };
 

@@ -53,17 +53,22 @@ set_ref = htsgen.PileupReadSet(
 )
 
 # --- generate --- #
-pileup = htsgen.generate_pileup(ppars, [
-    (NREADS_ALT, set_a),
-    (NREADS_REF, set_ref),
-])
+pileup = htsgen.generate_pileup(
+    ppars,
+    [(NREADS_ALT, set_a),
+    (NREADS_REF, set_ref)]
+)
 
 # --- use result --- #
 # Do work with the generated pileup.
 # PileupData is iterable; each entry is a PileupEntry,
 # which is a thin wrapper around bam_pileup1_t
-print(f"{'base':<6} {'qpos':<6} {'gstart':<8} {'qual':<6} is_del")
-print("-" * 38)
-for entry in pileup:
-    print(f"{entry.base:<6} {entry.qpos:<6} {entry.gstart:<8} {entry.base_qual:<6} {entry.is_del}")
+# print(f"{'base':<6} {'qpos':<6} {'gstart':<8} {'qual':<6} is_del")
+# print("-" * 38)
+# for entry in pileup:
+#     print(f"{entry.base:<6} {entry.qpos:<6} {entry.gstart:<8} {entry.base_qual:<6} {entry.is_del}")
+
+print ("nreads: {}".format(pileup.nread));
+print ("writing pileup")
+_ = htsgen.write_pileup(pileup, "pileup.sam");
 

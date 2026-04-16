@@ -23,7 +23,7 @@ enum cigarcode : int {
 
 using CigV = std::vector<std::pair<size_t, cigarcode>>;
 
-using AuxTag = const char[3];
+using AuxTag = std::string;
 using AuxData = std::variant<int64_t, float, std::string>;
 int append_aux (bam1_t* b, AuxTag name, AuxData data);
 // using AuxArrayData... todo
