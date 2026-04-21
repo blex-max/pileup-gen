@@ -35,9 +35,9 @@ ppars = htsgen.PileupParams(
 broad_qpos = lambda: random.randint(0, READ_LEN - 1)
 
 # Clustered (mirrors commented-out set_b in main.cpp):
-# midpoint = (READ_LEN // 2) - 1
-# wobble   = int(READ_LEN * 0.05)
-# clust_qpos = lambda: random.randint(midpoint - wobble, midpoint + wobble)
+midpoint = (READ_LEN // 2) - 1
+wobble   = int(READ_LEN * 0.05)
+clust_qpos = lambda: random.randint(midpoint - wobble, midpoint + wobble)
 
 # The only supported "interesting"
 # functionality right now is the ability to
@@ -45,6 +45,11 @@ broad_qpos = lambda: random.randint(0, READ_LEN - 1)
 set_a = htsgen.PileupReadSet(
     event = htsgen.EventSpec(htsgen.BaseEvents.A),
     qpos_cb = broad_qpos,
+)
+
+set_t = htsgen.PileupReadSet(
+    event = htsgen.EventSpec(htsgen.BaseEvents.T),
+    qpos_cb = clust_qpos
 )
 
 set_ref = htsgen.PileupReadSet(
@@ -56,6 +61,7 @@ set_ref = htsgen.PileupReadSet(
 pileup = htsgen.generate_pileup(
     ppars,
     [(NREADS_ALT, set_a),
+    (NREADS_ALT, set_t),
     (NREADS_REF, set_ref)]
 )
 
