@@ -34,24 +34,28 @@ ppars = htsgen.PileupParams(
 # Broad: uniform query position across the full read length
 broad_qpos = lambda: random.randint(0, READ_LEN - 1)
 
-# Clustered (mirrors commented-out set_b in main.cpp):
+# Clustered
 midpoint = (READ_LEN // 2) - 1
 wobble   = int(READ_LEN * 0.05)
 clust_qpos = lambda: random.randint(midpoint - wobble, midpoint + wobble)
 
 # The only supported "interesting"
 # functionality right now is the ability to
-# specify a callback for query position
+# specify a callback for query position!
+
+# a broadly distributed variant allele
 set_a = htsgen.PileupReadSet(
     event = htsgen.EventSpec(htsgen.BaseEvents.A),
     qpos_cb = broad_qpos,
 )
 
+# a clustered variant allele
 set_t = htsgen.PileupReadSet(
     event = htsgen.EventSpec(htsgen.BaseEvents.T),
     qpos_cb = clust_qpos
 )
 
+# broadly distributed reference allele
 set_ref = htsgen.PileupReadSet(
     event = htsgen.EventSpec(htsgen.BaseEvents.ref),
     qpos_cb = broad_qpos,
@@ -69,12 +73,18 @@ pileup = htsgen.generate_pileup(
 # Do work with the generated pileup.
 # PileupData is iterable; each entry is a PileupEntry,
 # which is a thin wrapper around bam_pileup1_t
+#
+# e.g:
 # print(f"{'base':<6} {'qpos':<6} {'gstart':<8} {'qual':<6} is_del")
 # print("-" * 38)
 # for entry in pileup:
 #     print(f"{entry.base:<6} {entry.qpos:<6} {entry.gstart:<8} {entry.base_qual:<6} {entry.is_del}")
 
+# write out
 print ("nreads: {}".format(pileup.nread));
-print ("writing pileup")
+print ("writing generated data")
+with open("pileup-ref.fa") as fh:
+    fh.write(">chr1")
+    fh.write(REF_SEQ)
 _ = htsgen.write_pileup(pileup, "pileup.sam");
 
