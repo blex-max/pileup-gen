@@ -1,4 +1,7 @@
 build/
 .cache/
 scratch/
-**/examples/*.sam
+
+*.sam
+*.bam
+*.cram
