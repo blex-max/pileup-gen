@@ -1,3 +1,7 @@
 build/
 .cache/
 scratch/
+
+*.sam
+*.bam
+*.cram

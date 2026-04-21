@@ -4,7 +4,6 @@
 #include <cstddef>
 #include <functional>
 #include <memory>
-#include <random>
 #include <span>
 
 #include <htslib/hts.h>
@@ -53,20 +52,10 @@ bool validate (const PileupCoordinates& pc);
 // NOTE WIP
 struct PileupParams {
   PileupCoordinates coord;
-  std::string_view ref_region;
-  uint16_t read_len;            // must be <= (ref_region.size() / 2) - 1
+  std::string_view refseq;
+  uint16_t readlen;            // must be <= (ref_region.size() / 2) - 1
 };
 bool validate (const PileupParams& pp);
-
-
-// output
-struct PileupData {
-  // NOTE: destruction will be in reverse order.
-  // NOTE: make_unique default-initalises, prefer new T[n]{}
-  std::unique_ptr<bam1_t[]> b1arr;
-  std::unique_ptr<bam_pileup1_t[]> p1arr;
-  size_t nread;  // must be set
-};
 
 
 // Manifest describing a set
@@ -75,10 +64,12 @@ struct PileupData {
 // reads of that set.
 struct PileupReadSet {
   EventSpec event;
-  std::function<uint16_t(std::mt19937&)> qpos_cb;  // callback generating a
-                                                   // query position from a distribution
-                                                   // (or otherwise).
+  // how would these introspect the existing context when used via bindings
+  std::function<uint16_t()> qpos_cb;  // callback generating a
+                                      // query position from a distribution
+                                      // (or otherwise).
   // further properties TODO
+  // std::function<std::map<readops::AuxTag, readops::AuxData>()> tag_cb;
 };
 
 
@@ -88,7 +79,31 @@ void apply_event
 (const EventSpec& event, readops::ReadSpec& read, hts_pos_t event_gpos);
 
 
+// generation output
+// functor for freeing mem
+struct Bam1ArrayDeleter {
+  size_t n;
+  void operator()(bam1_t* arr) const {
+    for (size_t i = 0; i < n; ++i) {
+      auto b = arr[i];
+      b.mempolicy = BAM_USER_OWNS_STRUCT;  // don't free structs
+      bam_destroy1 (&b);
+    }
+    delete[] arr;  // free structs
+  }
+};
+using Bam1Array = std::unique_ptr<bam1_t[], Bam1ArrayDeleter>;
+using Pileup1Array = std::unique_ptr<bam_pileup1_t[]>;  // does not require custom deleter
+struct PileupData {
+  // NOTE: destruction will be in reverse order.
+  // NOTE: make_unique default-initalises, prefer new T[n]{}
+  Bam1Array b1arr;
+  Pileup1Array p1arr;
+  size_t nread;  // must be set
+};
 PileupData generate_pileup
-(const PileupParams& pileup_pars, std::span<const std::pair<size_t, PileupReadSet>> sets, std::mt19937& rng);
+(const PileupParams& pileup_pars,
+ std::span<const std::pair<size_t, PileupReadSet>> sets,
+ PileupReadSet& shared);
 
 

@@ -1,9 +1,14 @@
 #include "generate-pileup.hpp"
-#include "read-ops.hpp"
-#include "util.hpp"
+
+#include <format>
 #include <htslib/hts.h>
 #include <htslib/sam.h>
 #include <string>
+
+#include "plog/Log.h"
+
+#include "read-ops.hpp"
+#include "util.hpp"
 
 
 size_t span
@@ -27,11 +32,11 @@ bool validate
 (const PileupParams& pp)
 {
   const auto& coord = pp.coord;
-  const auto ref_span = pp.ref_region.size();
+  const auto ref_span = pp.refseq.size();
   return (
     validate (coord)
     && ref_span == span (coord)
-    && pp.read_len <= ref_span
+    && pp.readlen <= ref_span
   );
 }
 
@@ -63,25 +68,27 @@ void apply_event
 // requiste for the result to properly represent the desired pileup
 // explicit specification
 PileupData generate_pileup
-(const PileupParams& pileup_pars, std::span<const std::pair<size_t, PileupReadSet>> sets, std::mt19937& rng)
+(const PileupParams& pileup_pars, std::span<const std::pair<size_t, PileupReadSet>> sets, PileupReadSet& shared)
 {
     size_t nsum_reads = 0;
     for (const auto& [nset_reads, _] : sets) {
       nsum_reads += nset_reads;
     }
 
+    PLOGD << std::format ("requested generation of {} total reads", nsum_reads);
+
     // mem arenas
     PileupData out {
-      .b1arr = std::unique_ptr<bam1_t[]> (new bam1_t[nsum_reads]{}),
-      .p1arr = std::unique_ptr<bam_pileup1_t[]> (new bam_pileup1_t[nsum_reads]{}),
+      .b1arr = Bam1Array (new bam1_t[nsum_reads]{}, Bam1ArrayDeleter{nsum_reads}),
+      .p1arr = Pileup1Array (new bam_pileup1_t[nsum_reads]{}),
       .nread = nsum_reads
     };
 
-    const auto ref_seq = pileup_pars.ref_region;
+    const auto ref_seq = pileup_pars.refseq;
     const auto pileup_gstart = pileup_pars.coord.gstart;
     const auto pileup_gpos = pileup_pars.coord.gpos;
     const auto pileup_tid = pileup_pars.coord.tid;
-    const auto read_len = pileup_pars.read_len;
+    const auto read_len = pileup_pars.readlen;
 
     size_t mem_block_i = 0;
     size_t set_idx = 0;  // name param would be better
@@ -101,11 +108,12 @@ PileupData generate_pileup
           NOTE: can apply sequencing model at creation
         */
 
-        const auto qpos = set_spec.qpos_cb(rng);
+        const auto qpos = set_spec.qpos_cb();
         const auto read_gstart = pileup_gpos - qpos;
 
         // materialised string not string_view
         // since we may then edit it in place.
+        // NOTE: many placeholders
         readops::ReadSpec rs{
           .qseq=std::string (genomic_substr (
             pileup_gstart,
@@ -119,17 +127,24 @@ PileupData generate_pileup
                                               // + params
           .qcig={{read_len, readops::cigarcode::match}},
           .lmost_pos=read_gstart,
-          .mate_lmost_pos=-1,
+          .mate_lmost_pos=read_gstart + 1,
           .flag=BAM_FREAD1,
           .tid=pileup_tid,
-          .mate_tid=-1,
-          .mapq=37  // well mapped
+          .mate_tid=pileup_tid,
+          .mapq=37,  // well mapped
+          // .aux={{"MC", 'Z', }}
         };
 
         // apply perturbation as specified, or no op.
         apply_event (set_spec.event, rs, pileup_gpos);
 
+        // PLOGD << rs;
+
         readops::set_bam1 (rs, &b1);
+
+        // BUG placeholder hack
+        readops::append_aux (&b1, "MC", std::format("{}M", read_len));
+        readops::append_aux (&b1, "AS", 100);
 
         p1 = {
           .b = &b1,

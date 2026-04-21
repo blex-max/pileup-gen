@@ -11,8 +11,11 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
 
-option(ENABLE_DEBUG_FLAGS "Enable extra debug compile options" OFF)
+option(MAKE_PY "Compile python bindings" OFF)
+option(MAKE_EXE "Compile htsgen executable" OFF)
 option(MAKE_TEST "Compile and run tests binary" OFF)
+
+option(ENABLE_DEBUG_FLAGS "Enable extra debug compile options" OFF)
 
 # user paths to htslib if needed
 set(HTSLIB_INCLUDE_DIR "" CACHE PATH "Path to directory that contains htslib/hts.h")
@@ -23,6 +26,7 @@ find_package(PkgConfig QUIET)
 
 include(FetchContent)
 set(FETCHCONTENT_QUIET OFF)
+
 FetchContent_Declare(
     plog
     GIT_REPOSITORY https://github.com/SergiusTheBest/plog
@@ -30,15 +34,8 @@ FetchContent_Declare(
     GIT_SHALLOW    true
 )
 FetchContent_MakeAvailable(plog)
-FetchContent_Declare(
-    argparse
-    GIT_REPOSITORY https://github.com/p-ranav/argparse.git
-    GIT_TAG v3.2
-)
-FetchContent_MakeAvailable(argparse)
 
 # ------- htslib -------
-message(STATUS "Finding htslib")
 set(HTSLIB_TARGET "")
 set(_htslib_inc "")
 set(_htslib_lib "")
@@ -78,7 +75,6 @@ endif()
 
 # //--- testing ---//
 if(MAKE_TEST)
-  message(STATUS "Finding catch2 for test binary")
   Include(FetchContent)
 
   FetchContent_Declare(
@@ -100,12 +96,9 @@ if(MAKE_TEST)
 endif(MAKE_TEST)
 # //--- end testing ---//
 
-add_executable(htsgen
-  src/main.cpp
-  src/generate-pileup.cpp
-)
-
-target_compile_options(htsgen PRIVATE
+# compilation flags
+add_library(common_compile_opts INTERFACE)
+target_compile_options(common_compile_opts INTERFACE
     -Wall
     -Wextra
     -Wpedantic
@@ -122,26 +115,106 @@ target_compile_options(htsgen PRIVATE
 )
 
 if(ENABLE_DEBUG_FLAGS)
-  target_compile_options(htsgen PRIVATE
+  target_compile_options(common_compile_opts INTERFACE
     -fsanitize=address,undefined
     -fno-omit-frame-pointer
     -O0 -g
   )
-  target_link_options(htsgen PRIVATE
+  target_link_options(common_compile_opts INTERFACE
     -fsanitize=address,undefined
   )
 endif()
 
-target_include_directories(
-  htsgen
-  PRIVATE
+
+add_library(htsgen-core STATIC
+  src/generate-pileup.cpp
+  src/accessors.cpp
+  src/read-ops.cpp
+  src/pileup-ops.cpp
+)
+target_include_directories(htsgen-core PUBLIC
   src
 )
-
-target_link_libraries(
-  htsgen
-  PRIVATE
+target_link_libraries(htsgen-core PUBLIC
   ${HTSLIB_TARGET}
-  argparse
+)
+target_link_libraries(htsgen-core PRIVATE
   plog::plog
 )
+
+
+if (MAKE_EXE)
+  FetchContent_Declare(
+      argparse
+      GIT_REPOSITORY https://github.com/p-ranav/argparse.git
+      GIT_TAG v3.2
+  )
+  FetchContent_MakeAvailable(argparse)
+  add_executable(htsgen
+    src/main.cpp
+  )
+  target_link_libraries(htsgen PRIVATE
+    common_compile_opts
+    htsgen-core
+    argparse
+    plog::plog
+  )
+endif()
+
+
+# link bindings
+if(MAKE_PY)
+  set(PYBIND11_FINDPYTHON NEW)
+  FetchContent_Declare(
+    pybind11
+    GIT_REPOSITORY https://github.com/pybind/pybind11
+    GIT_TAG v3.0.3
+  )
+  FetchContent_MakeAvailable(pybind11)
+  pybind11_add_module(pyhtsgen
+    python/bindings.cpp
+  )
+  target_link_libraries(pyhtsgen PRIVATE
+    common_compile_opts
+    htsgen-core
+  )
+  set_target_properties(pyhtsgen PROPERTIES
+    OUTPUT_NAME htsgen
+  )
+  # janky, to revist
+  find_program(PYBIND11_STUBGEN_EXECUTABLE pybind11-stubgen)
+  if(PYBIND11_STUBGEN_EXECUTABLE)
+    set(_stubgen_script "${CMAKE_CURRENT_BINARY_DIR}/run_stubgen.cmake")
+    file(GENERATE
+      OUTPUT "${_stubgen_script}"
+      CONTENT
+"set(ENV{PYTHONPATH} \"$<TARGET_FILE_DIR:pyhtsgen>:$ENV{PYTHONPATH}\")
+execute_process(
+  COMMAND \"${PYBIND11_STUBGEN_EXECUTABLE}\" htsgen
+    --output-dir \"${CMAKE_CURRENT_BINARY_DIR}/stubs\"
+  RESULT_VARIABLE result
+)
+if(NOT result EQUAL 0)
+  message(STATUS \"pybind11-stubgen failed (exit \${result}) -- htsgen.pyi will not be installed\")
+endif()
+"
+    )
+    add_custom_command(TARGET pyhtsgen POST_BUILD
+      COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_CURRENT_BINARY_DIR}/stubs"
+      COMMAND ${CMAKE_COMMAND} -P "${_stubgen_script}"
+      COMMENT "Generating Python stubs for htsgen"
+    )
+  else()
+    message(STATUS "pybind11-stubgen not found, skipping stub generation")
+  endif()
+  # for pip install
+  install(TARGETS pyhtsgen
+    LIBRARY DESTINATION .
+  )
+  install(FILES ${CMAKE_CURRENT_BINARY_DIR}/stubs/htsgen.pyi
+    DESTINATION .
+    OPTIONAL
+  )
+endif()
+
+
