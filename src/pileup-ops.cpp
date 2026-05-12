@@ -4,42 +4,40 @@
 
 namespace pileops {
 
-int write_pileup (const PileupData& pd, std::filesystem::path fp) {
-  // BUG doesn't make sense to be returning different error ints...
+SamFile open(std::filesystem::path fp) {
+  SamFile sf;
+  sf.handle.reset (hts_open (fp.c_str(), "w"));
 
-  auto sam_handle = hts_open (fp.c_str(), "w");
-
-  // BUG placeholder fixed header
-  auto hdr = sam_hdr_init ();
   // NOTE attempting to write a bam1_t
   // to file without having set SQ lines
-  // is a segfault if any RNAME
-  // is set in the bam1_t
-  const std::string tid ("chr1");
-  sam_hdr_add_line (hdr, "SQ",
-                   "SN", tid.c_str(),
-                   "LN", "248956422",  // BUG wrong ln - if pileup data contained pileup params could use that
-                   NULL);
-  if (const auto rc = sam_hdr_write (sam_handle, hdr);
-      rc < 0)
-  {
-        return rc;
-  };
+  // is a segfault if any RNAME is set in the bam1_t
+  sf.hdr.reset (sam_hdr_init());
+  // BUG placeholder fixed header
+  sam_hdr_add_line (sf.hdr.get(), "SQ",
+                    "SN", "chr1",
+                    "LN", "248956422",  // BUG wrong LN - if pileup data contained pileup params,
+                                        // that struct could be used to set this field
+                    NULL);
+  sam_hdr_write (sf.handle.get(), sf.hdr.get());
 
+  return sf;
+}
+
+// header should be extended by this method.
+// PileupData should hold the necessary params to do so
+// or should also need to pass PileupParams.
+int write_pileup(SamFile& sf, const PileupData& pd) {
   const auto read_arr = pd.b1arr.get();
   for (size_t i = 0; i < pd.nread; ++i) {
-    const auto rc = sam_write1(sam_handle, hdr, read_arr + i);
-    if (rc < 0) {
-      return rc;
-    }
+    const auto rc = sam_write1 (sf.handle.get(), sf.hdr.get(), read_arr + i);
+    if (rc < 0) return rc;
   }
-
-  // I really need unique ptrs
-  hts_flush(sam_handle);
-  hts_close(sam_handle);
-  sam_hdr_destroy(hdr);
-
   return 0;
+}
+
+int write_pileup_auto(const PileupData& pd, std::filesystem::path fp) {
+  auto sf = open (fp);
+  return write_pileup (sf, pd);
 }
 
 }  // end namespace

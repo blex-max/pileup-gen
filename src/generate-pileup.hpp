@@ -2,6 +2,7 @@
 
 #include <cassert>
 #include <cstddef>
+#include <cstdint>
 #include <functional>
 #include <memory>
 #include <span>
@@ -65,11 +66,12 @@ bool validate (const PileupParams& pp);
 struct PileupReadSet {
   EventSpec event;
   // how would these introspect the existing context when used via bindings
-  std::function<uint16_t()> qpos_cb;  // callback generating a
+  std::function<uint16_t()> qpos;  // callback generating a
                                       // query position from a distribution
                                       // (or otherwise).
   // further properties TODO
   // std::function<std::map<readops::AuxTag, readops::AuxData>()> tag_cb;
+  std::function<uint16_t(/* ctx */)> flag;
 };
 
 
@@ -97,7 +99,7 @@ using Pileup1Array = std::unique_ptr<bam_pileup1_t[]>;  // does not require cust
 struct PileupData {
   // NOTE: destruction will be in reverse order.
   // NOTE: make_unique default-initalises, prefer new T[n]{}
-  Bam1Array b1arr;
+  Bam1Array b1arr;  // storage backing for pileup1 array
   Pileup1Array p1arr;
   size_t nread;  // must be set
 };

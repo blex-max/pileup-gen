@@ -108,7 +108,7 @@ PileupData generate_pileup
           NOTE: can apply sequencing model at creation
         */
 
-        const auto qpos = set_spec.qpos_cb();
+        const auto qpos = set_spec.qpos();
         const auto read_gstart = pileup_gpos - qpos;
 
         // materialised string not string_view

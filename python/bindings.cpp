@@ -40,11 +40,12 @@ PYBIND11_MODULE (htsgen, m) {
   // without disturbing the python-side callback approach.
   py::class_<PileupReadSet, py::smart_holder> (m, "PileupReadSet")
     .def (
-      py::init<EventSpec, std::function<uint16_t()>>(),
-      py::arg("event"), py::arg("qpos_cb")
+      py::init<EventSpec, std::function<uint16_t()>, std::function<uint16_t()>>(),
+      py::arg("event"), py::arg("qpos"), py::arg("flag")
     )
     .def_readwrite("event", &PileupReadSet::event)
-    .def_readwrite("qpos_cb", &PileupReadSet::qpos_cb);
+    .def_readwrite("qpos", &PileupReadSet::qpos)
+    .def_readwrite("flag", &PileupReadSet::flag);
 
   py::class_<PileupCoordinates, py::smart_holder> (m, "PileupCoordinates")
     .def (
@@ -95,15 +96,33 @@ PYBIND11_MODULE (htsgen, m) {
       return generate_pileup(pars, sets, shared);
     },
     // using the default argument is unsafe and a BUG, but currently fine since not implemented
+    // Regretably, I don't know why I wrote the above...
     py::arg("params"), py::arg("set_specs"), py::arg("shared_spec")=PileupReadSet{},
     "generate a synthetic pileup containing sets of reads");
 
   m.def("write_pileup",
     [](const PileupData& p, std::string fp) {
-      return pileops::write_pileup(p, fp);
+      return pileops::write_pileup_auto (p, fp);
     },
     py::arg("pileup"), py::arg("fp"),
     "write a PileupData object to disk in SAM format"
   );
+
+  py::class_<pileops::SamFile, py::smart_holder> (m, "SamWriter")
+    .def (py::init ([](std::string fp) {
+      return pileops::open (fp);
+    }), py::arg("fp"))
+    .def ("write", [](pileops::SamFile& sf, const PileupData& pd) {
+      return pileops::write_pileup (sf, pd);
+    }, py::arg("pileup"))
+    .def ("close", [](pileops::SamFile& sf) {
+      sf.handle.reset();
+      sf.hdr.reset();
+    })
+    .def ("__enter__", [](pileops::SamFile& sf) -> pileops::SamFile& { return sf; })
+    .def ("__exit__", [](pileops::SamFile& sf, py::object, py::object, py::object) {
+      sf.handle.reset();
+      sf.hdr.reset();
+    });
 
 }
