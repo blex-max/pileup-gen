@@ -33,3 +33,7 @@ inline std::string_view genomic_substr
     nchar
   );
 }
+
+// TODO?
+std::string to_json (const bam_pileup1_t* p1);
+
