@@ -11,6 +11,7 @@ hts_pos_t qpos (const bam_pileup1_t* p1);
 
 hts_pos_t gstart (const bam_pileup1_t* p1);
 
+std::string seq (const bam1_t *b, size_t qpos=0, size_t n=0);
 std::string seq (const bam_pileup1_t* p1, size_t qpos=0, size_t n=0);
 
 char pileup_base (const bam_pileup1_t* p1);

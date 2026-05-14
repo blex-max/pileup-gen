@@ -172,7 +172,7 @@ if(MAKE_PY)
   )
   FetchContent_MakeAvailable(pybind11)
   pybind11_add_module(pyhtsgen
-    python/bindings.cpp
+    src/bindings/python/bindings.cpp
   )
   target_link_libraries(pyhtsgen PRIVATE
     common_compile_opts

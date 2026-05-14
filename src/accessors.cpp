@@ -26,21 +26,26 @@ uint16_t flag (const bam_pileup1_t* p1) {
 }
 
 
-std::string seq (const bam_pileup1_t* p1, size_t qpos, size_t n) {
-  std::string seq_out{};
+std::string seq (const bam1_t *b, size_t qpos, size_t n)
+{
+  if (n == 0 || (qpos + n) > b->core.l_qseq) {
+    n = b->core.l_qseq;
+  }
+  std::string out;
+  out.resize(n);
+  auto seq_nib = bam_get_seq(b);
 
-  if (n == 0 || (qpos + n) > p1->b->core.l_qseq) {
-    n = p1->b->core.l_qseq;
+  for (size_t i=0; i < n; ++i) {
+    out.push_back(seq_nt16_str[bam_seqi(seq_nib, qpos + i)]);
   }
 
-  const auto seq_nib = bam_get_seq(p1->b);
-
-  for (size_t i = qpos; i < n; ++i) {
-    seq_out += seq_nt16_str[bam_seqi(seq_nib, i)];
-  }
-
-  return seq_out;
+  return out;
 }
+std::string seq (const bam_pileup1_t* p1, size_t qpos, size_t n)
+{
+  return seq (p1->b, qpos, n);
+}
+
 
 
 std::string get_seq_genomic (const bam_pileup1_t* p1, size_t gpos, size_t n=0) {

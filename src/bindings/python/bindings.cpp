@@ -36,16 +36,52 @@ PYBIND11_MODULE (htsgen, m) {
 
   // py::init supports multiple overloads via repeated .def(py::init<...>()),
   // so a second constructor taking a PMF (probability mass)
-  // array (e.g. std::vector<double>) can be added later
-  // without disturbing the python-side callback approach.
+  // array (e.g. std::vector<double>) for qpos, for example,
+  // can be added later without disturbing the python-side callback approach.
   py::class_<PileupReadSet, py::smart_holder> (m, "PileupReadSet")
     .def (
-      py::init<EventSpec, std::function<uint16_t()>, std::function<uint16_t()>>(),
-      py::arg("event"), py::arg("qpos"), py::arg("flag")
+      py::init([](
+        EventSpec event,
+        std::function<uint16_t()> qpos,
+        std::optional<std::function<uint16_t()>> flag,
+        std::optional<std::function<uint8_t()>> mapq,
+        std::optional<std::function<std::string()>> qname,
+        std::optional<std::function<int32_t()>> mate_tid,
+        std::optional<std::function<std::string()>> qual,
+        std::optional<std::function<std::vector<std::pair<std::string, readops::AuxData>>()>> aux,
+        std::string set_name
+      ) {
+        PileupReadSet rs;
+        rs.event    = std::move(event);
+        rs.qpos     = std::move(qpos);
+        rs.flag     = std::move(flag);
+        rs.mapq     = std::move(mapq);
+        rs.qname    = std::move(qname);
+        rs.mate_tid = std::move(mate_tid);
+        rs.qual     = std::move(qual);
+        rs.aux      = std::move(aux);
+        rs.set_name = std::move(set_name);
+        return rs;
+      }),
+      py::arg("event"),
+      py::arg("qpos"),
+      py::arg("flag")     = py::none(),
+      py::arg("mapq")     = py::none(),
+      py::arg("qname")    = py::none(),
+      py::arg("mate_tid") = py::none(),
+      py::arg("qual")     = py::none(),
+      py::arg("aux")      = py::none(),
+      py::arg("set_name") = std::string{}
     )
-    .def_readwrite("event", &PileupReadSet::event)
-    .def_readwrite("qpos", &PileupReadSet::qpos)
-    .def_readwrite("flag", &PileupReadSet::flag);
+    .def_readwrite("event",    &PileupReadSet::event)
+    .def_readwrite("qpos",     &PileupReadSet::qpos)
+    .def_readwrite("flag",     &PileupReadSet::flag)
+    .def_readwrite("mapq",     &PileupReadSet::mapq)
+    .def_readwrite("qname",    &PileupReadSet::qname)
+    .def_readwrite("mate_tid", &PileupReadSet::mate_tid)
+    .def_readwrite("qual",     &PileupReadSet::qual)
+    .def_readwrite("aux",      &PileupReadSet::aux)
+    .def_readwrite("set_name", &PileupReadSet::set_name);
 
   py::class_<PileupCoordinates, py::smart_holder> (m, "PileupCoordinates")
     .def (
@@ -91,13 +127,10 @@ PYBIND11_MODULE (htsgen, m) {
     }, py::keep_alive<0, 1>());
 
   m.def("generate_pileup",
-    // does the vector here need to be copied?
-    [](const PileupParams& pars, std::vector<std::pair<size_t, PileupReadSet>> sets, PileupReadSet& shared) {
-      return generate_pileup(pars, sets, shared);
+    [](const PileupParams& pars, const std::vector<std::pair<size_t, PileupReadSet>>& sets) {
+      return generate_pileup(pars, sets);
     },
-    // using the default argument is unsafe and a BUG, but currently fine since not implemented
-    // Regretably, I don't know why I wrote the above...
-    py::arg("params"), py::arg("set_specs"), py::arg("shared_spec")=PileupReadSet{},
+    py::arg("params"), py::arg("set_specs"),
     "generate a synthetic pileup containing sets of reads");
 
   m.def("write_pileup",

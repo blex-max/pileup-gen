@@ -12,9 +12,6 @@
 
 #include "read-ops.hpp"
 
-/* see main.cpp for commentary on
-the higher level design and use of this functionality */
-
 
 // maps to ambiguity codes
 // plus del.
@@ -65,13 +62,27 @@ bool validate (const PileupParams& pp);
 // reads of that set.
 struct PileupReadSet {
   EventSpec event;
-  // how would these introspect the existing context when used via bindings
+  // state-free callbacks w.r.t.
+  // cpp engine. These may be stateful
+  // closures on the python side.
+  // Specify an exact set per read profile required,
+  // rather than requiring any complex context introspection
+  // and stochastics.
   std::function<uint16_t()> qpos;  // callback generating a
-                                      // query position from a distribution
-                                      // (or otherwise).
+                                   // query position from a distribution
+                                   // (or otherwise).
   // further properties TODO
-  // std::function<std::map<readops::AuxTag, readops::AuxData>()> tag_cb;
-  std::function<uint16_t(/* ctx */)> flag;
+  std::optional<std::function<uint16_t()>> flag;
+  std::optional<std::function<uint8_t()>> mapq;
+  std::optional<std::function<std::string()>> qname; // read{i}-set{j}-{set_name} if not provided
+  std::optional<std::function<int32_t()>> mate_tid;  // if not provided, same as pileup tid
+                                                     // NOTE: perhaps for user ease this should be
+                                                     // a string return which we convert internally
+                                                     // to a valid TID
+  std::optional<std::function<std::string()>> qual;  // NOTE: AH! this will need to know read len...
+                                                     // but again maybe that can be on the python side...
+  std::optional<std::function<std::vector<std::pair<std::string, readops::AuxData>>()>> aux;
+  std::string set_name;  // optional
 };
 
 
@@ -100,12 +111,10 @@ struct PileupData {
   // NOTE: destruction will be in reverse order.
   // NOTE: make_unique default-initalises, prefer new T[n]{}
   Bam1Array b1arr;  // storage backing for pileup1 array
-  Pileup1Array p1arr;
+  Pileup1Array p1arr;  // Note this could also be a vector of pointers...
   size_t nread;  // must be set
 };
 PileupData generate_pileup
-(const PileupParams& pileup_pars,
- std::span<const std::pair<size_t, PileupReadSet>> sets,
- PileupReadSet& shared);
+(const PileupParams& pileup_pars, std::span<const std::pair<size_t, PileupReadSet>> sets);
 
 

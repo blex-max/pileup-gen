@@ -1,5 +1,6 @@
 #include "generate-pileup.hpp"
 
+#include <cstdint>
 #include <format>
 #include <htslib/hts.h>
 #include <htslib/sam.h>
@@ -68,7 +69,7 @@ void apply_event
 // requiste for the result to properly represent the desired pileup
 // explicit specification
 PileupData generate_pileup
-(const PileupParams& pileup_pars, std::span<const std::pair<size_t, PileupReadSet>> sets, PileupReadSet& shared)
+(const PileupParams& pileup_pars, std::span<const std::pair<size_t, PileupReadSet>> sets)
 {
     size_t nsum_reads = 0;
     for (const auto& [nset_reads, _] : sets) {
@@ -111,49 +112,54 @@ PileupData generate_pileup
         const auto qpos = set_spec.qpos();
         const auto read_gstart = pileup_gpos - qpos;
 
-        // materialised string not string_view
-        // since we may then edit it in place.
-        // NOTE: many placeholders
         readops::ReadSpec rs{
           .qseq=std::string (genomic_substr (
             pileup_gstart,
             read_gstart,
             read_len,
             ref_seq
-          )),
-          .qqual=std::string (read_len, 37),
-          .qname="read" + std::to_string(i) + "-set" + std::to_string(set_idx),  // good candiate/example for callbacks needing
-                                              // a context obj of generation up to this point
-                                              // + params
-          .qcig={{read_len, readops::cigarcode::match}},
+          )),  // NOTE: what if the user wants to set specific or empty sequences?
+               // well, that wouldn't make sense in this modal context
+               // since an empty sequence can't be aligned.
+               // NOTE: it doesn't make sense to take the sequence
+               // without cigar awareness
+          .qqual=set_spec.qual ? (*set_spec.qual)() : std::string (read_len, 37),
+          .qname=
+            set_spec.qname
+            ? (*set_spec.qname)()
+            : "read" + std::to_string(i) + "-set" + std::to_string(set_idx),  // NOTE: why would the user ever
+                                                                              // care about the qname
+                                                                              // in pileup generation mode?
+                                                                              // If wanting to generate
+                                                                              // corrupted/bad data perhaps,
+                                                                              // but it would seem contrived
+                                                                              // to be doing so in a pileup
+                                                                              // context.
+          .qcig={{read_len, readops::cigarcode::match}}, // NOTE: do not be fooled into bothering
+                                                         // with overcomplex cigar based generation
+                                                         // it will not be rewarded
           .lmost_pos=read_gstart,
-          .mate_lmost_pos=read_gstart + 1,
-          .flag=BAM_FREAD1,
+          .mate_lmost_pos=read_gstart + 1,  // only relevant for paired end
+          .flag=set_spec.flag ? (*set_spec.flag)() : static_cast<uint16_t> (BAM_FREAD1),
           .tid=pileup_tid,
-          .mate_tid=pileup_tid,
-          .mapq=37,  // well mapped
-          // .aux={{"MC", 'Z', }}
+          .mate_tid=set_spec.mate_tid ? (*set_spec.mate_tid)() : pileup_tid,
+          .mapq=set_spec.mapq ? (*set_spec.mapq)() : static_cast<uint8_t> (37),
+          .aux=set_spec.aux ? (*set_spec.aux)() : std::vector<std::pair<std::string, readops::AuxData>>{}
+          // TODO factor out defaults
         };
 
         // apply perturbation as specified, or no op.
         apply_event (set_spec.event, rs, pileup_gpos);
 
-        // PLOGD << rs;
-
         readops::set_bam1 (rs, &b1);
-
-        // BUG placeholder hack
-        readops::append_aux (&b1, "MC", std::format("{}M", read_len));
-        readops::append_aux (&b1, "AS", 100);
 
         p1 = {
           .b = &b1,
           .qpos = qpos,
-          .indel = 0,
-          .is_del = 0,
+          .indel = 0,  // placeholder
+          .is_del = 0, // placeholder
           .is_head = (qpos == 0),
           .is_tail = (qpos == read_len - 1),
-          .is_refskip = 0,
           // NOTE: incomplete initialisation.
           // Likely to factor out to a function later
           // to initialise based on bam1_t + args.

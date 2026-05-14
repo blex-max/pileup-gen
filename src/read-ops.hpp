@@ -1,7 +1,6 @@
 #pragma once
 
 #include <cstdint>
-#include <map>
 #include <string>
 #include <variant>
 #include <vector>
@@ -23,10 +22,9 @@ enum cigarcode : int {
 
 using CigV = std::vector<std::pair<size_t, cigarcode>>;
 
-using AuxTag = std::string;
 using AuxData = std::variant<int64_t, float, std::string>;
-int append_aux (bam1_t* b, AuxTag name, AuxData data);
-// using AuxArrayData... todo
+int append_aux (bam1_t* b, const std::string& name, const AuxData& data);
+// NOTE/TODO array type aux not catered for!
 
 
 struct ReadSpec {
@@ -43,7 +41,7 @@ struct ReadSpec {
   // TLEN/isize left out at least for now
   // as the field is problematic and nonstandard
   // (per discussion with sam team).
-  std::map<AuxTag, AuxData> aux;
+  std::vector<std::pair<std::string, AuxData>> aux;
   // auxarray...
 };
 std::ostream& operator<< (std::ostream& os, const ReadSpec& rs);  // serialise

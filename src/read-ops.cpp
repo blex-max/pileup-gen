@@ -27,7 +27,7 @@ std::ostream& operator<< (std::ostream& os, const ReadSpec& rs) {
 template<class... Ts>
 struct overloads : Ts... { using Ts::operator()...; };
 int append_aux
-(bam1_t* b, AuxTag name, AuxData data)
+(bam1_t* b, const std::string& name, const AuxData& data)
 {
   if (name.size() != 2) return -1;
   const auto vistor = overloads {
@@ -66,14 +66,14 @@ int set_bam1 (const ReadSpec& rs, bam1_t* b) {
       rs.lmost_pos,
       rs.mapq,
       cig_nop,
-      cig_nop > 0 ? cig_arr : NULL,  // cigar set later
+      cig_nop > 0 ? cig_arr : NULL,
       rs.mate_tid,
       rs.mate_lmost_pos,
       0,  // isize ignored for now
       rs.qseq.size(),
       rs.qseq.empty() ? NULL : rs.qseq.c_str(),
       rs.qqual.empty() ? NULL : rs.qqual.c_str(),
-      0  // append later
+      0  // aux tags appended below
   );
 
   delete[] cig_arr;

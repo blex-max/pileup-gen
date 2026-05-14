@@ -8,6 +8,7 @@ Walkthrough: generate a small synthetic pileup with two populations of reads.
 
 import random
 import htsgen
+from collections.abc import Callable
 
 
 # --- specify pileup --- #
@@ -19,16 +20,16 @@ NREADS_REF = 60
 
 coords = htsgen.PileupCoordinates(
     gstart = 0,
-    gend = len(REF_SEQ),
+    gend = len(REF_SEQ),  # off by one?
     gpos = READ_LEN - 1,   # position of interest
     tid = TID,
-)
+)  # TODO: alternative constructor taking only region length and tid, to infer the rest
 
 ppars = htsgen.PileupParams(
     coordinates = coords,
     refseq = REF_SEQ,
     readlen = READ_LEN,
-)
+)  # TODO: wrappr that constructs params and coordinates from minimal info
 
 # --- specify read sets --- #
 # Broad: uniform query position across the full read length
@@ -39,26 +40,45 @@ midpoint = (READ_LEN // 2) - 1
 wobble   = int(READ_LEN * 0.05)
 clust_qpos = lambda: random.randint(midpoint - wobble, midpoint + wobble)
 
-# The only supported "interesting"
-# functionality right now is the ability to
-# specify a callback for query position!
+# all our reads will have this same tag data
+def make_aux_tags () -> list[tuple[str, str | int | float]]:
+    return [
+        ("MC", "50M"),
+        ("AS", 100)
+    ]
+
+# helper
+def PileupReadSet_factory (
+    event: htsgen.EventSpec,
+    fn_qpos: Callable[[], int]
+) -> htsgen.PileupReadSet:
+    """
+    factory to produce read sets
+    with specified properties and
+    fixed shared properties.
+    """
+    return htsgen.PileupReadSet (
+        event=event,
+        qpos=fn_qpos,
+        aux=make_aux_tags
+    )
 
 # a broadly distributed variant allele
-set_a = htsgen.PileupReadSet(
-    event = htsgen.EventSpec(htsgen.BaseEvents.A),
-    qpos_cb = broad_qpos,
+set_a = PileupReadSet_factory (
+    htsgen.EventSpec(htsgen.BaseEvents.A),
+    broad_qpos,
 )
 
 # a clustered variant allele
-set_t = htsgen.PileupReadSet(
-    event = htsgen.EventSpec(htsgen.BaseEvents.T),
-    qpos_cb = clust_qpos
+set_t = PileupReadSet_factory (
+    htsgen.EventSpec(htsgen.BaseEvents.T),
+    clust_qpos,
 )
 
 # broadly distributed reference allele
-set_ref = htsgen.PileupReadSet(
-    event = htsgen.EventSpec(htsgen.BaseEvents.ref),
-    qpos_cb = broad_qpos,
+set_ref = PileupReadSet_factory (
+    htsgen.EventSpec(htsgen.BaseEvents.ref),
+    broad_qpos,
 )
 
 # --- generate --- #
@@ -80,11 +100,11 @@ pileup = htsgen.generate_pileup(
 # for entry in pileup:
 #     print(f"{entry.base:<6} {entry.qpos:<6} {entry.gstart:<8} {entry.base_qual:<6} {entry.is_del}")
 
-# write out
+# and/or write out
 print ("nreads: {}".format(pileup.nread));
 print ("writing generated data")
-with open("pileup-ref.fa") as fh:
-    fh.write(">chr1")
-    fh.write(REF_SEQ)
+with open("pileup-ref.fa", "w") as fh:
+    _ = fh.write(">chr1")
+    _ = fh.write(REF_SEQ)
 _ = htsgen.write_pileup(pileup, "pileup.sam");
 
